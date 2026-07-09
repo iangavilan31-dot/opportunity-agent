@@ -29,6 +29,7 @@ import web_offer
 import gmail_drafts
 import verify_email
 import followups
+import owner_name
 import screenshots
 
 
@@ -182,9 +183,16 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
             company = t["company_name"]
             category = t.get("category", "generic")
             city = t.get("city", "")
+            # Owner name (selected leads only — 1-2 extra fetches each). A found
+            # name turns the opener into "Hi Goli," which measurably lifts
+            # replies; abstains rather than guess.
+            try:
+                contact = owner_name.find(company, t.get("domain", "")) or ""
+            except Exception:
+                contact = ""
             suite = web_offer.generate_website_suite(
                 company_name=company, city=city, category=category,
-                contact_name="", signals=signals,
+                contact_name=contact, signals=signals,
             )
             noun = web_offer._ctx(category)[0]
             issues = signals.get("headline_issues", [])
@@ -227,6 +235,7 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
                 niche="web_design",
                 niche_label="Website",
                 offer=json.dumps(suite["offer"]),
+                contact_name=contact,
                 contact_email=email,
                 contact_source=("csv" if t.get("contact_email") else ("website" if email else "")),
                 contact_verified=(verification["level"] or "unverified") if email else "",

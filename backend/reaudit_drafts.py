@@ -82,9 +82,19 @@ def run() -> dict:
             category = next(
                 (k for k, (n, _) in web_offer._CATEGORY.items() if n == noun),
                 "generic")
+            contact = (lead.contact_name or "").strip()
+            if not contact:
+                try:
+                    import owner_name
+                    contact = owner_name.find(lead.company_name,
+                                              lead.company_domain) or ""
+                    if contact:
+                        lead.contact_name = contact
+                except Exception:
+                    contact = ""
             suite = web_offer.generate_website_suite(
                 company_name=lead.company_name, city=lead.job_location or "",
-                category=category, contact_name="", signals=signals)
+                category=category, contact_name=contact, signals=signals)
             issues = signals.get("headline_issues", [])
             changed = "; ".join(issues) != old_issues
 
