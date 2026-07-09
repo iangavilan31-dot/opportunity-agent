@@ -71,6 +71,14 @@ def _ctx(category: str) -> tuple[str, str]:
     return _CATEGORY.get((category or "generic").lower(), _CATEGORY["generic"])
 
 
+def _is_local(city: str) -> bool:
+    """Is this prospect genuinely in driving distance of home base? Gates every
+    'local'/'right here in X' claim AND the footer mailing address (Ian's rule,
+    2026-07-09: say it and show the address only when it's true)."""
+    town = (city or "").split(",")[0].strip().casefold()
+    return bool(town) and town in getattr(config, "LOCAL_TOWNS", set())
+
+
 def offer_pack() -> dict:
     setup = getattr(config, "WEB_SETUP_PRICE", 1200)
     monthly = getattr(config, "WEB_MONTHLY_PRICE", 99)
@@ -190,11 +198,15 @@ def generate_website_suite(
             f" My site's here, and you'll notice it already knows who you are: {plink}",
         ])
     meet = ", or a quick 10-min Google Meet if that's easier" if offer_meet else ""
-    # CAN-SPAM footer on every cold touch: working opt-out + physical postal
-    # address ([Mailing address] is filled from Settings at render time; a PO Box
-    # is fine and keeps a home address out of cold email).
+    # Local honesty gate: the "right here in X" line and the footer mailing
+    # address ship ONLY for genuinely-local prospects, so the copy, the address,
+    # and reality always agree.
+    local = _is_local(city)
+    home = getattr(config, "STUDIO_HOME_TOWN", "").strip()
+    # Opt-out on every cold touch; the postal line joins when it corroborates
+    # ([Mailing address] is filled from Settings at render time; PO Box is fine).
     footer = ('\n\nIf you\'d rather not hear from me, just reply "no thanks" '
-              "and I won't email again.\n[Mailing address]")
+              "and I won't email again." + ("\n[Mailing address]" if local else ""))
 
     # ── Subject: specific, honest, no fake Re: ───────────────────────────────
     # Every variant carries the company name: a batch of 40 then has 40 distinct
@@ -238,9 +250,17 @@ def generate_website_suite(
         f"Happy to send a free mockup of your new homepage{meet}. Want me to?",
         f"I already started sketching what a new homepage could look like, free{meet}. Interested in seeing it?",
     ])
+    if local and home:
+        pitch_line = (f"I design fast, mobile-first sites for local {nouns} "
+                      f"from right here in {home}{studio_clause}, the kind that "
+                      f"turn a Google search into a phone call.")
+    else:
+        pitch_line = (f"I design fast, mobile-first sites for {nouns}"
+                      f"{studio_clause}, the kind that turn a Google search "
+                      f"into a phone call.")
     email_body = f"""{greeting}{issue_clause}
 
-I design fast, mobile-first sites for local {nouns}{f' around {city}' if city else ''}{studio_clause}, the kind that turn a Google search into a phone call.
+{pitch_line}
 
 {give}
 
@@ -254,7 +274,7 @@ I design fast, mobile-first sites for local {nouns}{f' around {city}' if city el
 Here's what stood out when I looked:
 {fix_lines}
 
-None of it is hard to fix. I design fast, mobile-first sites for local {nouns}: HTTPS, click-to-call, a booking/contact form, and set up so you show up when {how_found}.{proof}
+None of it is hard to fix. I design fast, mobile-first sites for {'local ' if local else ''}{nouns}{f' from right here in {home}' if local and home else ''}: HTTPS, click-to-call, a booking/contact form, and set up so you show up when {how_found}.{proof}
 
 I'd rather show than tell: I can put together a quick mockup of a new homepage for {company_name}, free, and you decide from there{meet}. Want me to send it over?
 

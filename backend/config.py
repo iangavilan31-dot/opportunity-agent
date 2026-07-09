@@ -63,8 +63,33 @@ SOURCING_REFRESH_DAYS = int(os.getenv("SOURCING_REFRESH_DAYS", "7"))
 SOURCING_DEPTH = int(os.getenv("SOURCING_DEPTH", "2"))
 # Hard cap per city so a hung scrape can never eat the morning run.
 SOURCING_CITY_TIMEOUT_S = int(os.getenv("SOURCING_CITY_TIMEOUT_S", "1200"))
+# Ian's real backyard (Bergen County, NJ — he's in Englewood Cliffs). Local
+# targeting makes every "local" claim in the copy TRUE, enables real Meets /
+# in-person, and lets the footer address corroborate the pitch instead of
+# contradicting it. (Was Phoenix/Scottsdale/Mesa — build defaults, never his.)
 SOURCING_CITIES = [c.strip() for c in os.getenv(
-    "SOURCING_CITIES", "Phoenix, AZ;Scottsdale, AZ;Mesa, AZ").split(";") if c.strip()]
+    "SOURCING_CITIES",
+    "Englewood, NJ;Fort Lee, NJ;Hackensack, NJ;Teaneck, NJ;Paramus, NJ;"
+    "Fair Lawn, NJ;Ridgewood, NJ;Bergenfield, NJ;Cliffside Park, NJ;Tenafly, NJ"
+).split(";") if c.strip()]
+
+# ── Local identity (the honesty rule, Ian 2026-07-09) ────────────────────────
+# "Local" wording + the footer mailing address appear ONLY when the prospect's
+# town is genuinely within driving distance of home base. Never imply localness
+# elsewhere: the lie would surface at the exact moment a warm lead replies
+# ("you're local? let's meet"). Deliberately a standalone list, NOT derived
+# from SOURCING_CITIES, so adding a distant market later can't silently start
+# claiming it's local.
+STUDIO_HOME_TOWN = os.getenv("STUDIO_HOME_TOWN", "Englewood Cliffs")
+LOCAL_TOWNS = {t.strip().casefold() for t in os.getenv(
+    "LOCAL_TOWNS",
+    "Englewood Cliffs;Englewood;Fort Lee;Hackensack;Teaneck;Paramus;Fair Lawn;"
+    "Ridgewood;Bergenfield;Cliffside Park;Tenafly;Leonia;Palisades Park;"
+    "Edgewater;Closter;Dumont;New Milford;River Edge;Oradell;Emerson;Westwood;"
+    "Cresskill;Demarest;Haworth;Harrington Park;Norwood;Northvale;Alpine;"
+    "Bogota;Maywood;Ridgefield;Ridgefield Park;Little Ferry;Fairview;"
+    "Hasbrouck Heights;Rochelle Park;Paramus;Glen Rock;Hawthorne"
+).split(";") if t.strip()}
 # High-ROI, often-neglected industries (trades + storefront services). Deliberately
 # NOT restaurants/cafes/real-estate/hotels — those tend to already invest in design.
 SOURCING_NICHES = [n.strip() for n in os.getenv(
