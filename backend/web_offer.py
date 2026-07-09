@@ -14,8 +14,30 @@ drops straight into the existing Lead columns, Queue/Send UI, and analytics.
 """
 from __future__ import annotations
 
+import re
+
 import config
 from email_templates import _variant, _first_name, _article
+
+
+def _plural(noun: str) -> str:
+    """'plumbing company' -> 'plumbing companies', 'business' -> 'businesses'."""
+    if re.search(r"[^aeiou]y$", noun):
+        return noun[:-1] + "ies"
+    if re.search(r"(?:s|x|ch|sh)$", noun):
+        return noun + "es"
+    return noun + "s"
+
+
+def _short_name(company: str) -> str:
+    """Scraped names carry suffixes ('Terravita Smiles - Goli Asadi, DDS') that
+    read clunky in copy. Keep the part before the separator for display only."""
+    for sep in (" - ", " — ", " – ", " | "):
+        if sep in company:
+            head = company.split(sep)[0].strip()
+            if len(head) >= 4:
+                return head
+    return company
 
 
 # Category -> (singular noun, how their customers find them) for natural copy.
@@ -111,9 +133,11 @@ def generate_website_suite(
 ) -> dict:
     fn = _first_name(contact_name)
     noun, how_found = _ctx(category)
+    nouns = _plural(noun)
     offer = offer_pack()
     issues = signals.get("headline_issues", []) or ["a few things worth fixing"]
     lead_issue = issues[0]
+    company_name = _short_name(company_name)  # display only; DB keeps the full name
     issue_clause = _issue_clause(signals, company_name, noun, how_found)
     seed = (company_name or "") + (city or "")
     has_name = bool(contact_name and contact_name.strip())
@@ -177,7 +201,7 @@ def generate_website_suite(
     ])
     email_body = f"""{greeting}{issue_clause}
 
-I design fast, mobile-first sites for local {noun}s{f' around {city}' if city else ''}{studio_clause} — the kind that turn a Google search into a phone call.
+I design fast, mobile-first sites for local {nouns}{f' around {city}' if city else ''}{studio_clause} — the kind that turn a Google search into a phone call.
 
 {give}
 
@@ -190,7 +214,7 @@ I design fast, mobile-first sites for local {noun}s{f' around {city}' if city el
 Here's what stood out when I looked:
 {fix_lines}
 
-None of it is hard to fix. I design fast, mobile-first sites for local {noun}s — HTTPS, click-to-call, a booking/contact form, and set up so you show up when {how_found}.{proof}
+None of it is hard to fix. I design fast, mobile-first sites for local {nouns} — HTTPS, click-to-call, a booking/contact form, and set up so you show up when {how_found}.{proof}
 
 I'd rather show than tell: I can put together a quick mockup of a new homepage for {company_name}, free, and you decide from there{meet}. Want me to send it over?
 
@@ -223,9 +247,7 @@ I'd rather show than tell: I can put together a quick mockup of a new homepage f
     second_issue = issues[1] if len(issues) > 1 else None
     if second_issue:
         fu1_open = (f"One more thing I noticed while I had your site open — "
-                    f"{second_issue}. That's on top of the "
-                    f"{'reviews thing' if 'trust_gap' in codes else lead_issue.split(' (')[0]} "
-                    f"I mentioned last week.")
+                    f"{second_issue}. That's on top of what I mentioned last week.")
     else:
         fu1_open = (f"Circling back — short version: {lead_issue}, and it's the kind "
                     f"of thing quietly sending {how_found} to competitors.")

@@ -198,6 +198,30 @@ def _empty_result(domain: str) -> dict:
     }
 
 
+_LANG_ATTR = re.compile(r"<html[^>]*\slang=[\"']?([a-zA-Z]{2})")
+_LANG_HINTS = {
+    "es": (" servicios ", " nosotros ", " contáctenos", " cont&aacute;ctenos",
+           " nuestro ", " nuestra ", " años ", " empresa ", " llámenos", " hoy mismo "),
+    "en": (" services ", " contact us", " about us", " our team", " we offer ",
+           " call us", " get a quote", " schedule "),
+}
+
+
+def _detect_language(low: str) -> str:
+    """Best-effort page language ('en', 'es', ...). Defaults to 'en' when
+    ambiguous — we only want to SKIP a lead when the site is definitively in a
+    language the outreach isn't written in, never on a hunch."""
+    m = _LANG_ATTR.search(low)
+    if m:
+        return m.group(1).lower()
+    scores = {lang: sum(low.count(h) for h in hints)
+              for lang, hints in _LANG_HINTS.items()}
+    best = max(scores, key=scores.get)
+    if best != "en" and scores[best] >= 3 and scores[best] > scores.get("en", 0) * 2:
+        return best
+    return "en"
+
+
 def apply_trust_gap(signals: dict, rating, review_count) -> None:
     """Inject the trust-gap finding when Google Maps data proves it: a business
     with strong reviews whose site shows none of them. The single most
@@ -300,6 +324,7 @@ def analyze(domain: str) -> dict:
     res["load_ms"] = round(load_ms)
     html = (resp.text or "")[:600_000]
     low = html.lower()
+    res["language"] = _detect_language(low)
 
     def add(sev, code, msg):
         res["findings"].append({"sev": sev, "code": code, "msg": msg})

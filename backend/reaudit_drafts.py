@@ -76,10 +76,15 @@ def run() -> dict:
                 continue
 
             old_issues = lead.score_reasoning or ""
+            # job_title stores the display NOUN ("Website — dental practice") —
+            # reverse-map it to the category KEY the copy engine expects.
+            noun = (lead.job_title or "").replace("Website — ", "").strip()
+            category = next(
+                (k for k, (n, _) in web_offer._CATEGORY.items() if n == noun),
+                "generic")
             suite = web_offer.generate_website_suite(
                 company_name=lead.company_name, city=lead.job_location or "",
-                category=(lead.job_title or "").replace("Website — ", "") or "generic",
-                contact_name="", signals=signals)
+                category=category, contact_name="", signals=signals)
             issues = signals.get("headline_issues", [])
             changed = "; ".join(issues) != old_issues
 

@@ -99,7 +99,7 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
     db.commit()
     db.refresh(run)
 
-    queued = skipped_existing = skipped_lowopp = errors = drafted = 0
+    queued = skipped_existing = skipped_lowopp = skipped_lang = errors = drafted = 0
     try:
         max_analyze = getattr(config, "AUTOPILOT_MAX_ANALYZE", 150)
         targets, source = web_targets.load_targets(limit=max_analyze)
@@ -143,6 +143,12 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
                 opportunity = int(signals.get("opportunity_score", 0))
                 if opportunity < min_opp:
                     skipped_lowopp += 1
+                    continue
+                # Site definitively in a language the outreach isn't written in
+                # -> an English pitch reads as spam; skip.
+                lang = signals.get("language", "en")
+                if lang not in getattr(config, "OUTREACH_LANGS", ["en"]):
+                    skipped_lang += 1
                     continue
                 email = (t.get("contact_email") or "").strip() or signals.get("contact_email", "")
                 # Carry the Maps qualification data into the stored signals so the
@@ -281,10 +287,12 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
         db.commit()
 
         _log(run_log, f"Done. {queued} leads {landing_status} | {drafted} Gmail drafts | "
-                      f"{skipped_existing} already had | {skipped_lowopp} sites fine | {errors} errors")
+                      f"{skipped_existing} already had | {skipped_lowopp} sites fine | "
+                      f"{skipped_lang} non-English | {errors} errors")
         return {
             "ok": True, "queued": queued, "drafted": drafted, "status": landing_status,
             "skipped_existing": skipped_existing, "skipped_lowopp": skipped_lowopp,
+            "skipped_lang": skipped_lang,
             "errors": errors, "source": source, "run_id": run.id,
         }
     except Exception as e:

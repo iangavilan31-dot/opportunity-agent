@@ -71,6 +71,12 @@ SOURCING_NICHES = [n.strip() for n in os.getenv(
     "SOURCING_NICHES", "auto,dental,law,chiropractor,plumbing,hvac,roofing,electrician,vet"
 ).split(",") if n.strip()]
 SOURCING_MAX_PER_QUERY = int(os.getenv("SOURCING_MAX_PER_QUERY", "60"))
+# Only draft to sites written in these languages — an English pitch to a
+# Spanish-only business reads as spam. Detection: <html lang> attr, then a
+# stopword sniff; ambiguous defaults to English (skip only when definitive).
+OUTREACH_LANGS = [x.strip().lower() for x in
+                  os.getenv("OUTREACH_LANGS", "en").split(",") if x.strip()]
+
 # Keep no-website businesses too — "you have no site" is the strongest pitch,
 # and Maps sourcing gives us their phone number for manual contact. They rank
 # below bad-site-with-reviews leads (which have proven they'll pay for a site).
