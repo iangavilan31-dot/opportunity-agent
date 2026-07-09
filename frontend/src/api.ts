@@ -131,6 +131,7 @@ export const api = {
       sender_name: string
       positioning: string
       calendar_link: string
+      site_link?: string
       sender_email: string
       postal_address?: string
       configured: boolean
@@ -141,6 +142,7 @@ export const api = {
     sender_name?: string
     positioning?: string
     calendar_link?: string
+    site_link?: string
     sender_email?: string
     postal_address?: string
   }) => req<{ configured: boolean; signature_preview: string }>('/settings', {

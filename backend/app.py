@@ -71,6 +71,7 @@ class SenderProfile(BaseModel):
     sender_name: Optional[str] = None
     positioning: Optional[str] = None
     calendar_link: Optional[str] = None
+    site_link: Optional[str] = None
     sender_email: Optional[str] = None
     postal_address: Optional[str] = None
 

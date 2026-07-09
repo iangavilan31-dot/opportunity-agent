@@ -14,7 +14,8 @@ SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "sender_profile.json")
 DEFAULTS = {
     "sender_name": "",          # e.g. "Ian Gavilan"
     "positioning": "",          # e.g. "I automate back-office workflows for small teams"
-    "calendar_link": "",        # e.g. "cal.com/ian/15min"
+    "calendar_link": "",        # e.g. "cal.com/ian/15min" (only if it's REAL)
+    "site_link": "",            # e.g. "https://gavika.vercel.app" — studio link in the signature
     "sender_email": "",         # reply-to / from address (info only)
     # CAN-SPAM requires a physical postal address in every commercial email.
     # A PO Box counts (and keeps a home address off cold emails).
@@ -56,6 +57,10 @@ def build_signature(settings: dict | None = None) -> str:
     lines = [name]
     if positioning:
         lines[0] = f"{name} · {positioning}"
+    site = s.get("site_link", "").strip()
+    if site:
+        url = site if site.startswith("http") else f"https://{site}"
+        lines.append(url.split("://", 1)[1].rstrip("/"))
     if calendar:
         cal = calendar if calendar.startswith("http") else f"https://{calendar}"
         lines.append(f"Grab 15 min whenever: {cal}")
