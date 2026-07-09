@@ -78,6 +78,11 @@ def apply_signature(text: str | None, settings: dict | None = None) -> str:
     addr = s.get("postal_address", "").strip()
     if addr:
         out = out.replace("[Mailing address]", addr)
+    else:
+        # No address configured (yet): drop the line entirely rather than ship
+        # a literal placeholder. It reappears in every draft the moment the
+        # Settings field is filled (Ian's call 2026-07-09: PO Box pending).
+        out = out.replace("\n[Mailing address]", "").replace("[Mailing address]", "")
     return out
 
 
