@@ -168,11 +168,16 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
                 candidates.append({
                     "t": t, "signals": signals, "email": email, "job_id": job_id,
                     "opportunity": opportunity,
+                    "local": web_offer._is_local(t.get("city", "")),
                     "likelihood": _reply_likelihood(signals, email, t.get("category", "generic"), t),
                 })
 
-        # ── Rank most-likely-to-reply first ─────────────────────────────────
-        candidates.sort(key=lambda c: c["likelihood"], reverse=True)
+        # ── Rank: LOCAL is a tier, likelihood ranks within it ────────────────
+        # Ian's law (2026-07-09): never sacrifice a local send for a non-local
+        # one with a higher reply score. Local is where the identity is true,
+        # the Meet is real, and a close can happen face to face — so every
+        # local candidate outranks every non-local one, no matter the score.
+        candidates.sort(key=lambda c: (c["local"], c["likelihood"]), reverse=True)
 
         vision_on = bool(getattr(config, "OPENAI_API_KEY", "")) and getattr(config, "VISION_ENABLED", True)
         # When the vision gate is on, screenshot a BIGGER pool than `count`: the
@@ -242,7 +247,9 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
                 elif c["visual_notes"]:
                     vision_used += 1
             # Re-rank now that modern sites carry their penalty; dated stay put.
-            gate_pool.sort(key=lambda c: c["likelihood"], reverse=True)
+            # Local stays the top tier even here: a local modern-looking site
+            # still outranks a non-local dated one (Ian's law).
+            gate_pool.sort(key=lambda c: (c["local"], c["likelihood"]), reverse=True)
             _log(run_log, f"Visual gate: downranked {downranked_modern} modern-looking "
                           f"sites, sharpened {vision_used} openers")
 
