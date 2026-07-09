@@ -133,6 +133,29 @@ def _fetch(url: str, timeout: float = 12.0, verify: bool = True) -> tuple[httpx.
         return None, (time.perf_counter() - start) * 1000.0, f"{type(e).__name__}: {e}"
 
 
+def _tls_handshake_ok(host: str) -> bool | None:
+    """Does the host speak TLS on 443? Raw handshake — far more reliable than a
+    full page GET (no redirects, no WAF, no body). True = yes; False =
+    DEFINITIVELY not (refused / not TLS); None = unknown (timeouts etc.).
+    The 'Not Secure' email claim requires a hard False — flaky fetches lied
+    to us twice on 2026-07-08/09."""
+    import socket
+    import ssl
+    for _ in range(2):
+        try:
+            ctx = ssl._create_unverified_context()
+            with socket.create_connection((host, 443), timeout=6) as sock:
+                with ctx.wrap_socket(sock, server_hostname=host):
+                    return True
+        except ConnectionRefusedError:
+            return False          # nothing listens on 443
+        except ssl.SSLError:
+            return False          # something listens, but it isn't TLS
+        except Exception:
+            continue              # timeout / reset / no route — try once more
+    return None
+
+
 def _pagespeed_score(url: str) -> int | None:
     """Google PageSpeed Insights mobile Performance score (0-100). Optional."""
     key = getattr(config, "PAGESPEED_API_KEY", "")
@@ -175,6 +198,31 @@ def _empty_result(domain: str) -> dict:
     }
 
 
+def apply_trust_gap(signals: dict, rating, review_count) -> None:
+    """Inject the trust-gap finding when Google Maps data proves it: a business
+    with strong reviews whose site shows none of them. The single most
+    'this person actually looked' line we can write, and fully verifiable —
+    review numbers come from Maps, the absence comes from the page source."""
+    try:
+        rating = float(rating or 0)
+        review_count = int(float(review_count or 0))
+    except (TypeError, ValueError):
+        return
+    if review_count < 20 or rating < 4.0:
+        return
+    if not signals.get("reachable") or signals.get("social_only"):
+        return
+    if signals.get("reviews_onsite") or "reviews_onsite" not in signals:
+        return
+    if any(f.get("code") == "trust_gap" for f in signals.get("findings", [])):
+        return
+    msg = (f"has {review_count} Google reviews at {rating:.1f} stars, "
+           f"but the site doesn't show a single one")
+    signals["findings"].insert(0, {"sev": "high", "code": "trust_gap", "msg": msg})
+    signals["headline_issues"] = [msg] + list(signals.get("headline_issues", []))[:2]
+    signals["opportunity_score"] = min(100, int(signals.get("opportunity_score", 0)) + 10)
+
+
 def analyze(domain: str) -> dict:
     """
     Analyze a business's web presence. Always returns a result dict; never raises.
@@ -208,6 +256,7 @@ def analyze(domain: str) -> dict:
     # truly doesn't speak TLS (verify=False probe separates cert quirks — which
     # browsers often tolerate via AIA chain fetching — from actual no-HTTPS).
     cert_note = ""
+    https_confirmed_off = False
     resp, load_ms, err = _fetch(f"https://{host}")
     if resp is None:
         resp, load_ms, err = _fetch(f"https://{host}")  # retry: transients lie
@@ -224,7 +273,15 @@ def analyze(domain: str) -> dict:
             resp2, load_ms2, err2 = _fetch(f"http://{host}")
             if resp2 is not None and resp2.status_code < 500:
                 resp, load_ms, err = resp2, load_ms2, err2
-                https_ok = False  # confirmed: reachable, but NOT over https
+                # The site is reachable over plain http. Before the "Not
+                # Secure" claim is allowed, 443 must DEFINITIVELY refuse TLS —
+                # a raw handshake separates "their config" from "our network".
+                tls = _tls_handshake_ok(host)
+                if tls:
+                    https_ok = True          # they serve TLS; our fetch was flaky
+                else:
+                    https_ok = False
+                    https_confirmed_off = (tls is False)
             else:
                 # Totally unreachable.
                 res["findings"].append({"sev": "high", "code": "unreachable",
@@ -234,6 +291,9 @@ def analyze(domain: str) -> dict:
                 return res
     else:
         https_ok = str(resp.url).startswith("https://")
+        # https reached the server but the site redirected to plain http —
+        # a deliberate config, users really do see "Not Secure". Claim is fair.
+        https_confirmed_off = not https_ok
 
     res["reachable"] = True
     res["https_ok"] = https_ok
@@ -310,7 +370,8 @@ def analyze(domain: str) -> dict:
         add("med", "old_bootstrap", "styled with a 2013-era CSS framework (Bootstrap 2/3)")
 
     # ── HTTPS / "Not Secure" ────────────────────────────────────────────────
-    if not https_ok:
+    # Claim allowed ONLY when 443 definitively refused TLS. Unknown = silence.
+    if not https_ok and https_confirmed_off:
         score += 30
         strong_outdated = True
         add("high", "not_secure", "shows 'Not Secure' in the browser (no HTTPS)")
@@ -386,6 +447,12 @@ def analyze(domain: str) -> dict:
     res["meta_desc_ok"] = bool(re.search(r'<meta[^>]+name=["\']description["\']', html, re.IGNORECASE))
     if not res["meta_desc_ok"]:
         score += 3
+
+    # ── Reviews visible on the site? (for the trust-gap check) ──────────────
+    res["reviews_onsite"] = bool(re.search(
+        r"testimonial|aggregaterating|ratingvalue|google reviews|customer reviews|"
+        r"our (?:customers|clients|patients) say|review-?widget|trustindex|birdeye|"
+        r"podium\.(?:com|io)|elfsight|reviewsonmywebsite|five[- ]star|5[- ]star", low))
 
     # ── MODERNITY EXCLUSION — the "eliminate good businesses" gate ───────────
     has_og = 'property="og:' in low or "property='og:" in low

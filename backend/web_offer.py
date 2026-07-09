@@ -80,6 +80,10 @@ def _issue_clause(signals: dict, company: str, noun: str, how_found: str) -> str
     if "unreachable" in codes:
         return (f"I tried to pull up your website and it didn't load — "
                 f"if that's happening to {how_found} too, it's costing you calls.")
+    if "trust_gap" in codes:
+        tg = next(f["msg"] for f in signals["findings"] if f.get("code") == "trust_gap")
+        return (f"I noticed {company} {tg} — your best proof, invisible right "
+                f"where {how_found} decide.")
     if "no_mobile" in codes:
         return (f"Your website doesn't have a mobile version — and {how_found} "
                 f"are almost all on phones, where it's hard to read and tap.")
@@ -145,6 +149,12 @@ def generate_website_suite(
             f"couldn't find {company_name} online",
             f"quick note for {company_name}",
         ]
+    elif "trust_gap" in codes:
+        subject_pool = [
+            "your google reviews",
+            f"{company_name}'s reviews",
+            "your reviews + your website",
+        ]
     elif "no_mobile" in codes:
         subject_pool = [
             f"{company_name} on mobile",
@@ -161,9 +171,9 @@ def generate_website_suite(
 
     # ── Short initial email (~80-90 words), give-first ───────────────────────
     give = _variant(seed + "give", [
-        f"Happy to send a free mockup of your new homepage so you can see it first{meet}. Want me to?",
-        f"I can put together a quick homepage mockup for {company_name}, free, so you see it before deciding anything{meet}. Sound good?",
-        f"Want me to send over a free mockup of what a new homepage could look like{meet}? No pressure either way.",
+        f"I can mock up a new homepage for {company_name}, free{meet}. Worth sending over?",
+        f"Happy to send a free mockup of your new homepage{meet}. Want me to?",
+        f"I already started sketching what a new homepage could look like — free{meet}. Interested in seeing it?",
     ])
     email_body = f"""{greeting}{issue_clause}
 
@@ -207,9 +217,21 @@ I'd rather show than tell: I can put together a quick mockup of a new homepage f
     mini_audit = "\n".join(audit_lines)
 
     # ── Follow-ups ────────────────────────────────────────────────────────────
-    follow_up_1 = f"""{greeting}Circling back — figured this might've slipped past.
+    # Follow-up 1 adds a NEW verified finding instead of bumping the thread —
+    # value-add follow-ups out-reply "circling back" bumps, and the audit
+    # already found 2-3 real flaws per site.
+    second_issue = issues[1] if len(issues) > 1 else None
+    if second_issue:
+        fu1_open = (f"One more thing I noticed while I had your site open — "
+                    f"{second_issue}. That's on top of the "
+                    f"{'reviews thing' if 'trust_gap' in codes else lead_issue.split(' (')[0]} "
+                    f"I mentioned last week.")
+    else:
+        fu1_open = (f"Circling back — short version: {lead_issue}, and it's the kind "
+                    f"of thing quietly sending {how_found} to competitors.")
+    follow_up_1 = f"""{greeting}{fu1_open}
 
-Short version: {lead_issue}, and it's the kind of thing quietly sending {how_found} to competitors. I already sketched what a new homepage for {company_name} could look like — just say the word and I'll send it over, no charge.
+The free homepage mockup for {company_name} is still on the table — just say the word and I'll send it over.
 
 — [Your name]{footer}"""
 

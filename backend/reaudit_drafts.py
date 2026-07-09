@@ -46,6 +46,16 @@ def run() -> dict:
         for lead in leads:
             try:
                 signals = website_signals.analyze(lead.company_domain)
+                # Re-apply the trust-gap check using the Maps data captured at
+                # sourcing time (stored in the old score_breakdown).
+                try:
+                    maps = (json.loads(lead.score_breakdown or "{}")).get("maps") or {}
+                    website_signals.apply_trust_gap(
+                        signals, maps.get("rating"), maps.get("review_count"))
+                    if maps:
+                        signals["maps"] = maps
+                except Exception:
+                    pass
             except Exception as e:
                 print(f"  ! {lead.company_name}: analyze failed ({e}) — leaving as-is")
                 errors += 1

@@ -126,6 +126,10 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
             t, job_id = pair
             try:
                 signals = t.get("signals") or website_signals.analyze(t.get("domain", ""))
+                # Trust gap: strong Google reviews + none shown on the site.
+                # Runs before the opportunity gate — it's a conversion defect.
+                website_signals.apply_trust_gap(
+                    signals, t.get("rating"), t.get("review_count"))
                 return (t, job_id, signals, None)
             except Exception as e:
                 return (t, job_id, None, str(e))
