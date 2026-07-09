@@ -24,7 +24,12 @@ from email.mime.text import MIMEText
 
 _HERE = os.path.dirname(__file__)
 CREDENTIALS_PATH = os.path.join(_HERE, "gmail_credentials.json")
-TOKEN_PATH = os.path.join(_HERE, "gmail_token.json")
+# A second sending account = a per-account "profile": point GMAIL_TOKEN_PATH,
+# GMAIL_READ_TOKEN_PATH, and DB_PATH at that account's files before starting.
+# Separate DB per account keeps draft/follow-up affinity correct by
+# construction (a follow-up can never be drafted in the wrong inbox). Same
+# OAuth client works for any account — just authorize once per token file.
+TOKEN_PATH = os.getenv("GMAIL_TOKEN_PATH") or os.path.join(_HERE, "gmail_token.json")
 SCOPES = ["https://www.googleapis.com/auth/gmail.compose"]
 
 try:

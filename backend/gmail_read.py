@@ -27,7 +27,9 @@ import os
 from gmail_drafts import CREDENTIALS_PATH  # noqa: E402
 
 _HERE = os.path.dirname(__file__)
-READ_TOKEN_PATH = os.path.join(_HERE, "gmail_read_token.json")
+# Overridable for multi-account profiles (see gmail_drafts.TOKEN_PATH).
+READ_TOKEN_PATH = (os.getenv("GMAIL_READ_TOKEN_PATH")
+                   or os.path.join(_HERE, "gmail_read_token.json"))
 READ_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 try:
