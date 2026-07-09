@@ -83,10 +83,10 @@ export default function Dashboard() {
       <div className="p-6 flex flex-col gap-6">
         {/* Stats Grid */}
         <div className="grid grid-cols-3 gap-3">
-          <StatCard icon={Inbox} label="In Queue" value={stats.queued} sub="Awaiting review" color="text-yellow" />
+          <StatCard icon={Inbox} label="In Queue" value={stats.queued} sub="Awaiting review" color="text-muted" />
           <StatCard icon={Send} label="Emails Sent" value={stats.sent} sub="Total sent" />
-          <StatCard icon={MessageSquare} label="Replies" value={stats.replied} sub={`${stats.reply_rate}% reply rate`} color="text-cyan" />
-          <StatCard icon={Calendar} label="Meetings" value={stats.meetings} sub={`${stats.meeting_rate}% from replies`} color="text-green" />
+          <StatCard icon={MessageSquare} label="Replies" value={stats.replied} sub={`${stats.reply_rate}% reply rate`} color={stats.replied > 0 ? 'text-red' : 'text-muted'} />
+          <StatCard icon={Calendar} label="Meetings" value={stats.meetings} sub={`${stats.meeting_rate}% from replies`} color={stats.meetings > 0 ? 'text-red' : 'text-muted'} />
           <StatCard icon={TrendingUp} label="Reply Rate" value={`${stats.reply_rate}%`} sub="Across all sends" />
           <StatCard icon={Zap} label="Total Leads" value={stats.total_leads} sub={`${stats.rejected} rejected`} color="text-accent" />
         </div>
@@ -105,10 +105,10 @@ export default function Dashboard() {
                     className="w-full rounded-sm transition-all"
                     style={{
                       height: `${pct * 0.6}px`,
-                      background: i === 0 ? '#6366f1' :
-                                  i === 1 ? '#eab308' :
-                                  i === 2 ? '#3b82f6' :
-                                  i === 3 ? '#06b6d4' : '#22c55e',
+                      background: i === 0 ? '#4a4a52' :
+                                  i === 1 ? '#8b8b93' :
+                                  i === 2 ? '#f5f5f6' :
+                                  i === 3 ? '#e5484d' : '#f0605f',
                       opacity: 0.7,
                       minHeight: 4,
                     }}

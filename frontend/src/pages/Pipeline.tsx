@@ -110,7 +110,7 @@ export default function Pipeline() {
             className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors ${
               isRunning
                 ? 'bg-s3 text-dim cursor-not-allowed'
-                : 'bg-accent hover:bg-accent/80 text-white'
+                : 'bg-primary hover:bg-primary/90 text-bg'
             }`}
           >
             {isRunning ? <Square size={13} /> : <Play size={13} fill="currentColor" />}
@@ -122,11 +122,11 @@ export default function Pipeline() {
         {isRunning && progress && (
           <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-3">
             {[
-              { label: 'Scraped', value: progress.scraped, max: 100, color: '#6366f1' },
-              { label: 'Scored', value: progress.scored, max: progress.scraped || 1, color: '#eab308' },
-              { label: 'Passed threshold', value: progress.passed, max: progress.scored || 1, color: '#f97316' },
-              { label: 'Researched', value: progress.researched, max: progress.passed || 1, color: '#3b82f6' },
-              { label: 'Emails generated', value: progress.emailed, max: progress.researched || 1, color: '#22c55e' },
+              { label: 'Scraped', value: progress.scraped, max: 100, color: '#4a4a52' },
+              { label: 'Scored', value: progress.scored, max: progress.scraped || 1, color: '#6e6e78' },
+              { label: 'Passed threshold', value: progress.passed, max: progress.scored || 1, color: '#9b9ba4' },
+              { label: 'Researched', value: progress.researched, max: progress.passed || 1, color: '#c9c9cf' },
+              { label: 'Emails generated', value: progress.emailed, max: progress.researched || 1, color: '#f5f5f6' },
             ].map(({ label, value, max, color }) => (
               <div key={label} className="flex items-center gap-3">
                 <span className="text-xs text-muted w-36 shrink-0">{label}</span>

@@ -3,11 +3,12 @@ import { Send, MessageSquare, Calendar, RefreshCw, ChevronDown, ChevronUp, Copy,
 import type { Lead } from '../types'
 import { api } from '../api'
 
+// red appears exactly when a business answers — never before
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  approved: { label: 'Approved', color: 'text-blue border-blue/30 bg-blue/10' },
-  sent: { label: 'Sent', color: 'text-purple border-purple/30 bg-purple/10' },
-  replied: { label: 'Replied', color: 'text-cyan border-cyan/30 bg-cyan/10' },
-  meeting: { label: 'Meeting', color: 'text-green border-green/30 bg-green-dim' },
+  approved: { label: 'Approved', color: 'text-muted border-border bg-s2' },
+  sent: { label: 'Sent', color: 'text-primary border-border bg-s2' },
+  replied: { label: 'Replied', color: 'text-red border-red/30 bg-red-dim' },
+  meeting: { label: 'Meeting', color: 'text-red border-red/40 bg-red-dim' },
 }
 
 function OutreachRow({ lead, onUpdate }: { lead: Lead; onUpdate: (l: Lead) => void }) {

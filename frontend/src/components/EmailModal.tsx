@@ -208,7 +208,7 @@ export default function EmailModal({ lead, onClose, onSave }: Props) {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-accent hover:bg-accent/80 text-white rounded transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary hover:bg-primary/90 text-bg rounded transition-colors disabled:opacity-50"
             >
               <Save size={11} />
               {saving ? 'Saving…' : 'Save Changes'}

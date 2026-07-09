@@ -3,10 +3,11 @@ import { RefreshCw, Repeat, ExternalLink, Clock, AlertCircle, MessageSquare } fr
 import type { FollowupItem } from '../types'
 import { api } from '../api'
 
+// urgency reads as brightness, not hue
 const STAGE_COLOR: Record<number, string> = {
-  0: 'text-blue border-blue/30 bg-blue/10',
-  1: 'text-yellow border-yellow/30 bg-yellow/10',
-  2: 'text-red border-red/30 bg-red/10',
+  0: 'text-muted border-border bg-s2',
+  1: 'text-primary/80 border-border bg-s2',
+  2: 'text-primary border-muted/40 bg-s3',
 }
 
 function Row({ item, due, onSent, onReplied }: {

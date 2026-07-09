@@ -20,10 +20,10 @@ interface Props {
 
 function ScoreBadge({ score }: { score: number }) {
   const color =
-    score >= 80 ? 'text-score-high bg-green-dim border-green/20' :
-    score >= 65 ? 'text-score-mid bg-yellow/10 border-yellow/20' :
-    score >= 50 ? 'text-score-low bg-orange-900/30 border-score-low/20' :
-                  'text-score-fail bg-red-dim border-red/20'
+    score >= 80 ? 'text-score-high bg-s3 border-muted/30' :
+    score >= 65 ? 'text-score-mid bg-s2 border-border' :
+    score >= 50 ? 'text-score-low bg-s2 border-border-subtle' :
+                  'text-score-fail bg-surface border-border-subtle'
 
   return (
     <div className={`font-mono font-semibold text-base px-2.5 py-0.5 rounded border ${color}`}>
@@ -130,7 +130,7 @@ export default function LeadCard({
                 selected ? 'bg-accent border-accent' : 'border-border hover:border-muted'
               }`}
             >
-              {selected && <Check size={10} className="text-white" />}
+              {selected && <Check size={10} className="text-bg" />}
             </button>
           )}
           <ScoreBadge score={lead.automation_score} />
@@ -283,7 +283,7 @@ export default function LeadCard({
               <input value={cEmail} onChange={(e) => setCEmail(e.target.value)} placeholder="email@company.com"
                 className="flex-1 px-2 py-1 bg-surface border border-border rounded text-xs text-primary placeholder-dim font-mono" />
               <button onClick={saveContact} disabled={loading === 'contact' || !cEmail}
-                className="px-3 py-1 text-xs bg-accent hover:bg-accent/80 text-white rounded disabled:opacity-50">
+                className="px-3 py-1 text-xs bg-primary hover:bg-primary/90 text-bg rounded disabled:opacity-50">
                 {loading === 'contact' ? '…' : 'Save + verify'}
               </button>
             </div>

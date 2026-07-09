@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
+import Field from './pages/Field'
+import Atlas from './pages/Atlas'
 import Dashboard from './pages/Dashboard'
 import Queue from './pages/Queue'
 import Send from './pages/Send'
@@ -16,7 +18,9 @@ export default function App() {
         <Sidebar />
         <main className="flex-1 overflow-hidden">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<Field />} />
+            <Route path="/atlas" element={<Atlas />} />
+            <Route path="/overview" element={<Dashboard />} />
             <Route path="/queue" element={<Queue />} />
             <Route path="/send" element={<Send />} />
             <Route path="/followups" element={<Followups />} />

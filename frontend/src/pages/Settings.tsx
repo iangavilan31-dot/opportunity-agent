@@ -70,7 +70,7 @@ export default function Settings() {
           <button
             onClick={save}
             disabled={loading}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-accent hover:bg-accent/80 text-white rounded text-sm font-medium transition-colors disabled:opacity-50 self-start"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-bg rounded text-sm font-medium transition-colors disabled:opacity-50 self-start"
           >
             {saved ? <Check size={13} /> : <Save size={13} />}
             {saved ? 'Saved' : loading ? 'Saving…' : 'Save Profile'}

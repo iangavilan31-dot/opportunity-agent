@@ -4,12 +4,13 @@ import { api } from '../api'
 
 type Data = Awaited<ReturnType<typeof api.analytics>>
 
+// monochrome until the business answers — then red
 const FUNNEL_STAGES = [
-  { key: 'queued', label: 'Queued', color: '#eab308' },
-  { key: 'approved', label: 'Approved', color: '#6366f1' },
-  { key: 'sent', label: 'Sent', color: '#3b82f6' },
-  { key: 'replied', label: 'Replied', color: '#06b6d4' },
-  { key: 'meeting', label: 'Meeting', color: '#22c55e' },
+  { key: 'queued', label: 'Queued', color: '#4a4a52' },
+  { key: 'approved', label: 'Approved', color: '#8b8b93' },
+  { key: 'sent', label: 'Sent', color: '#f5f5f6' },
+  { key: 'replied', label: 'Replied', color: '#e5484d' },
+  { key: 'meeting', label: 'Meeting', color: '#f0605f' },
 ]
 
 function money(n: number): string {
