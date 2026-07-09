@@ -99,6 +99,19 @@ VISION_GATE_POOL = int(os.getenv("VISION_GATE_POOL", "90"))
 # when there aren't enough genuinely-dated prospects to hit the daily target.
 VISION_MODERN_PENALTY = float(os.getenv("VISION_MODERN_PENALTY", "1000"))
 
+# ── Autonomous sending (OFF by default — read auto_send.py before enabling) ──
+# The deliverability law stands: NEVER point this at the main personal Gmail.
+# It exists for a sacrificial alt or a warmed Workspace inbox, selected via the
+# GMAIL_TOKEN_PATH / GMAIL_READ_TOKEN_PATH / DB_PATH profile env vars.
+SEND_MODE = os.getenv("SEND_MODE", "off")                    # off | dry | live
+SEND_DAILY_CAP = int(os.getenv("SEND_DAILY_CAP", "25"))
+SEND_GAP_MIN = float(os.getenv("SEND_GAP_MIN", "3"))         # minutes between sends
+SEND_GAP_MAX = float(os.getenv("SEND_GAP_MAX", "9"))
+SEND_WINDOW = os.getenv("SEND_WINDOW", "9-17")               # local send hours
+# false = only leads Ian APPROVED in the Queue UI may auto-send (his quality
+# gate survives, minus the clicking). true = queued leads may send too.
+SEND_INCLUDE_QUEUED = os.getenv("SEND_INCLUDE_QUEUED", "false").lower() == "true"
+
 # ── Screenshot pipeline (visual grading) ─────────────────────────────────────
 # After ranking, capture mobile+desktop screenshots of the selected leads into
 # backend/screenshots/YYYY-MM-DD/ plus a contact-sheet HTML for a 5-minute skim.

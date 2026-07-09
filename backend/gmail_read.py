@@ -128,6 +128,12 @@ def latest_epoch_ms(query: str) -> int | None:
     return newest
 
 
+def count_messages(query: str, cap: int = 10) -> int:
+    """How many messages match a query, up to `cap` (cheap ids-only list).
+    Used by auto_send's bounce circuit-breaker."""
+    return len(_list_ids(query, max_results=cap))
+
+
 def has_message(query: str) -> bool:
     """True if at least one message matches the query."""
     return bool(_list_ids(query, max_results=1))

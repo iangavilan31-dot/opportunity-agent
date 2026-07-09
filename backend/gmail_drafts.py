@@ -139,6 +139,21 @@ def update_draft(draft_id: str, to: str, subject: str, body: str) -> bool:
         return False
 
 
+def send_draft(draft_id: str) -> bool:
+    """SEND an existing draft. The gmail.compose scope already covers this —
+    which is exactly why auto_send.py is gated so hard: nothing but config
+    stands between a draft and a real recipient. Only auto_send calls this."""
+    svc = _get_service()
+    if svc is None:
+        return False
+    try:
+        svc.users().drafts().send(userId="me", body={"id": draft_id}).execute()
+        return True
+    except Exception as e:
+        print(f"[gmail_drafts] send_draft {draft_id} failed: {e}")
+        return False
+
+
 def delete_draft(draft_id: str) -> bool:
     svc = _get_service()
     if svc is None:
