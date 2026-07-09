@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 from email.mime.text import MIMEText
 
 _HERE = os.path.dirname(__file__)
@@ -94,10 +95,13 @@ def create_draft(to: str, subject: str, body: str, from_name: str = "") -> str |
     if svc is None:
         return None
     try:
-        msg = MIMEText(body or "", _charset="utf-8")
+        # Last mile before Gmail: subjects skip apply_signature, so scrub
+        # AI-tell punctuation here for everything that ships.
+        from settings_store import humanize
+        msg = MIMEText(humanize(body), _charset="utf-8")
         if to:
             msg["To"] = to
-        msg["Subject"] = subject or ""
+        msg["Subject"] = humanize(subject)
         if from_name:
             # Gmail overrides From with the account address; the display name still shows.
             msg["From"] = from_name
@@ -116,10 +120,11 @@ def update_draft(draft_id: str, to: str, subject: str, body: str) -> bool:
     if svc is None:
         return False
     try:
-        msg = MIMEText(body or "", _charset="utf-8")
+        from settings_store import humanize
+        msg = MIMEText(humanize(body), _charset="utf-8")
         if to:
             msg["To"] = to
-        msg["Subject"] = subject or ""
+        msg["Subject"] = humanize(subject)
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         svc.users().drafts().update(
             userId="me", id=draft_id, body={"message": {"raw": raw}}).execute()
@@ -160,6 +165,44 @@ def list_draft_ids() -> set[str] | None:
                 return ids
     except Exception as e:
         print(f"[gmail_drafts] list_draft_ids failed: {e}")
+        return None
+
+
+def list_drafts_meta() -> list[dict] | None:
+    """[{id, to, subject}] for every current draft (None = not configured/failed).
+
+    Draft IDs are NOT stable: the Gmail web UI silently re-creates a draft
+    (new id) the moment a human edits it, so every id we stored goes stale as
+    soon as Ian reviews a draft. This is why 17/17 update_draft calls failed
+    with 'Message not a draft' on 2026-07-09. The recipient + subject are the
+    stable keys for re-linking a lead to its live draft."""
+    svc = _get_service()
+    if svc is None:
+        return None
+    out: list[dict] = []
+    try:
+        token = None
+        while True:
+            resp = svc.users().drafts().list(
+                userId="me", maxResults=500, pageToken=token).execute()
+            for d in resp.get("drafts", []):
+                try:
+                    full = svc.users().drafts().get(
+                        userId="me", id=d["id"], format="metadata").execute()
+                    headers = (full.get("message", {}) or {}).get(
+                        "payload", {}).get("headers", [])
+                    hmap = {h["name"].lower(): h.get("value", "") for h in headers}
+                    m = re.search(r"[\w.+\-]+@[\w.\-]+", hmap.get("to", ""))
+                    out.append({"id": d["id"],
+                                "to": m.group(0).lower() if m else "",
+                                "subject": hmap.get("subject", "")})
+                except Exception:
+                    continue
+            token = resp.get("nextPageToken")
+            if not token:
+                return out
+    except Exception as e:
+        print(f"[gmail_drafts] list_drafts_meta failed: {e}")
         return None
 
 

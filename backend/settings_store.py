@@ -67,13 +67,38 @@ def build_signature(settings: dict | None = None) -> str:
     return "\n".join(lines)
 
 
+# Punctuation that reads as machine-written in a cold email. A small-business
+# owner typing in Gmail produces hyphens, straight quotes, and "..." — em/en
+# dashes, curly quotes, and the one-char ellipsis are the tells that get a first
+# touch skimmed as AI spam (em dashes especially, per every 2025-26 cold-email
+# guide). The templates are written clean; this is the safety net for
+# LLM-written fragments (vision notes in the opener) and future copy edits.
+# Order matters: spaced forms first so "a — b" becomes "a - b", not "a  -  b".
+_AI_TELLS = (
+    (" — ", " - "), ("—", "-"),
+    (" – ", " - "), ("–", "-"),
+    ("…", "..."),
+    ("‘", "'"), ("’", "'"),
+    ("“", '"'), ("”", '"'),
+    ("• ", "- "), ("•", "-"),
+)
+
+
+def humanize(text: str | None) -> str:
+    """Normalize AI-tell punctuation to what a human types in Gmail."""
+    out = text or ""
+    for tell, plain in _AI_TELLS:
+        out = out.replace(tell, plain)
+    return out
+
+
 def apply_signature(text: str | None, settings: dict | None = None) -> str:
     """Replace the [Your name] / [Mailing address] placeholders with real values."""
     if not text:
         return text or ""
     s = settings or load_settings()
     sig = build_signature(s)
-    # Handle both "— [Your name]" and bare "[Your name]"
+    # Handle both "- [Your name]" and bare "[Your name]"
     out = text.replace("[Your name]", sig)
     addr = s.get("postal_address", "").strip()
     if addr:
@@ -83,7 +108,7 @@ def apply_signature(text: str | None, settings: dict | None = None) -> str:
         # a literal placeholder. It reappears in every draft the moment the
         # Settings field is filled (Ian's call 2026-07-09: PO Box pending).
         out = out.replace("\n[Mailing address]", "").replace("[Mailing address]", "")
-    return out
+    return humanize(out)
 
 
 def web_profile(settings: dict | None = None) -> dict:

@@ -6,12 +6,13 @@ then stop. Every lead already carries follow_up_1 / follow_up_2 copy — this
 module actually schedules it, with the same safety model as everything else:
 it only creates Gmail DRAFTS; Ian reviews and sends.
 
-How send-detection works with the compose-only OAuth scope (no re-auth needed):
-a draft that disappeared from the Drafts folder was sent (or deliberately
-deleted — either way, we move on). Reply-detection isn't possible with this
-scope, so a prospect who replied could still get a follow-up draft — Ian is
-the reply-handler and simply discards it. Marking a lead "replied" in the app
-stops its sequence immediately.
+Send-detection is delegated to gmail_sync.reconcile (recipient/Sent-folder
+based). Draft IDs are NOT usable for it: the Gmail web UI re-creates a draft
+under a new id the moment a human edits it, so "id vanished" just means Ian
+touched the draft — the old id-based check was silently marking edited-but-
+unsent drafts as sent, which would follow up on people who were never emailed.
+Reply-detection runs in reconcile too (read scope); a lead marked "replied"
+drops out of the sequence immediately.
 
 Notes-field markers (append-only, survives everything):
     gmail_draft:<id>   initial email draft        (written by morning_batch)
@@ -54,13 +55,24 @@ def process(db, log=print) -> dict:
     if not gmail_drafts.is_configured():
         return {"skipped": "gmail not configured"}
 
-    current = gmail_drafts.list_draft_ids()
-    if current is None:
+    # Reconcile first: TO/Sent-folder-based send + reply detection (draft ids
+    # are unstable, see module docstring). Everything below trusts lead.status.
+    import gmail_sync
+    rec = gmail_sync.reconcile(db, log=log)
+
+    drafts = gmail_drafts.list_drafts_meta()
+    if drafts is None:
         return {"skipped": "drafts list unavailable"}
+    # Live follow-up drafts per recipient: ours are the only drafts addressed
+    # to the prospect with an "re:" subject. Zero left = the follow-up went out.
+    live_re: dict[str, int] = {}
+    for d in drafts:
+        if d["to"] and (d["subject"] or "").lower().startswith("re:"):
+            live_re[d["to"]] = live_re.get(d["to"], 0) + 1
 
     fu1_days = getattr(config, "FOLLOWUP_1_DAYS", 3)
     fu2_days = getattr(config, "FOLLOWUP_2_DAYS", 10)
-    detected_sent = fu1_drafted = fu2_drafted = 0
+    fu1_drafted = fu2_drafted = 0
 
     leads = (db.query(Lead)
                .filter(Lead.source == "website_autopilot",
@@ -71,29 +83,22 @@ def process(db, log=print) -> dict:
 
     for lead in leads:
         notes = lead.notes or ""
-        initial = _marker(notes, "gmail_draft")
         fu1 = _marker(notes, "fu1_draft")
         fu2 = _marker(notes, "fu2_draft")
 
-        # ── Send detection: draft gone from Drafts = it went out ─────────────
-        if lead.status in ("queued", "approved"):
-            if initial and initial not in current:
-                lead.status = "sent"
-                lead.sent_at = lead.sent_at or _now()
-                lead.last_action_at = _now()
-                detected_sent += 1
-            else:
-                continue  # email 1 not sent yet — no follow-up business here
-
         if lead.status != "sent" or not lead.sent_at:
-            continue
+            continue  # email 1 not confirmed out -> no follow-up business here
         days_out = (_now() - _aware(lead.sent_at)).days
 
-        # Promote followup_stage when a follow-up draft has left the folder.
-        if fu1 and fu1 not in current and (lead.followup_stage or 0) < 1:
+        # Promote followup_stage when no follow-up draft remains for this
+        # recipient (an edited draft keeps its TO + "re:" subject, so it still
+        # counts as pending — only an actual send/delete empties the folder).
+        email = (lead.contact_email or "").strip().lower()
+        pending_re = live_re.get(email, 0) if email else 0
+        if fu1 and pending_re == 0 and (lead.followup_stage or 0) < 1:
             lead.followup_stage = 1
             lead.last_action_at = _now()
-        if fu2 and fu2 not in current and (lead.followup_stage or 0) < 2:
+        if fu2 and pending_re == 0 and (lead.followup_stage or 0) < 2:
             lead.followup_stage = 2
             lead.last_action_at = _now()
 
@@ -121,5 +126,7 @@ def process(db, log=print) -> dict:
                 log(f"  fu2 drafted -> {lead.company_name} ({days_out}d after send)")
 
     db.commit()
-    return {"sends_detected": detected_sent, "fu1_drafted": fu1_drafted,
+    return {"sends_detected": rec.get("sent_detected", 0),
+            "replies_detected": rec.get("replies_detected", 0),
+            "fu1_drafted": fu1_drafted,
             "fu2_drafted": fu2_drafted, "tracked": len(leads)}

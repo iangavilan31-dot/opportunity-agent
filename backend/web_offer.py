@@ -95,34 +95,34 @@ def _issue_clause(signals: dict, company: str, noun: str, how_found: str) -> str
     lead_issue = issues[0] if issues else "your site could be working a lot harder"
 
     if "no_domain" in codes:
-        return (f"I went looking for {company}'s website and couldn't find one — "
-                f"which means {how_found} are landing on competitors who show up first.")
+        return (f"I went looking for {company}'s website and couldn't find one. "
+                f"That means {how_found} are landing on competitors who show up first.")
     if "social_only" in codes:
-        return (f"Looks like {company} is running off a social page with no real website — "
+        return (f"Looks like {company} is running off a social page with no real website, "
                 f"so {how_found} have nowhere to book or learn more.")
     if "unreachable" in codes:
-        return (f"I tried to pull up your website and it didn't load — "
-                f"if that's happening to {how_found} too, it's costing you calls.")
+        return (f"I tried to pull up your website and it didn't load. "
+                f"If that's happening to {how_found} too, it's costing you calls.")
     if "trust_gap" in codes:
         tg = next(f["msg"] for f in signals["findings"] if f.get("code") == "trust_gap")
-        return (f"I noticed {company} {tg} — your best proof, invisible right "
-                f"where {how_found} decide.")
+        return (f"I noticed {company} {tg}. That's your best proof sitting invisible "
+                f"right where {how_found} decide.")
     if "no_mobile" in codes:
-        return (f"Your website doesn't have a mobile version — and {how_found} "
+        return (f"Your website doesn't have a mobile version, and {how_found} "
                 f"are almost all on phones, where it's hard to read and tap.")
     if "not_secure" in codes:
         return (f"Your site shows up as \"Not Secure\" in the address bar, "
                 f"which quietly turns away {how_found} before they ever call.")
     if {"slow", "slow_ps"} & codes:
-        return (f"Your site is slow to load — {how_found} tend to bounce before it "
-                f"even finishes, and Google pushes slow sites down.")
+        return (f"Your site is slow to load, so {how_found} tend to bounce before it "
+                f"even finishes. Google also pushes slow sites down.")
     if "builder" in codes:
         return (f"Your site looks like it's on {signals.get('builder', 'an old builder')}, "
                 f"and it's showing its age next to what {how_found} expect now.")
     if "stale" in codes:
         return (f"Small thing that says a lot: your site's copyright still reads "
                 f"{signals.get('copyright_year')}, so it reads as abandoned to {how_found}.")
-    return f"Quick look at your site turned up something worth fixing — {lead_issue}."
+    return f"Quick look at your site turned up something worth fixing: {lead_issue}."
 
 
 def generate_website_suite(
@@ -163,7 +163,7 @@ def generate_website_suite(
             visual_lead = visual_notes[0]
         issue_clause = (
             f"I pulled up {company_name}'s site on my phone and a couple things "
-            f"jumped out — {visual_lead}. Little things, but they're exactly what "
+            f"jumped out: {visual_lead}. Little things, but they're exactly what "
             f"makes {how_found} bounce instead of call.")
     else:
         issue_clause = _issue_clause(signals, company_name, noun, how_found)
@@ -185,11 +185,11 @@ def generate_website_suite(
     proof = ""
     if portfolio:
         proof = _variant(seed + "proof", [
-            f" Here's my work — open it, your name's already on it: {plink}",
+            f" Here's my work. Open it, your name's already on it: {plink}",
             f" See what I build (I put {company_name}'s name up on it): {plink}",
-            f" My site's here — you'll notice it already knows who you are: {plink}",
+            f" My site's here, and you'll notice it already knows who you are: {plink}",
         ])
-    meet = " — or a quick 10-min Google Meet if that's easier" if offer_meet else ""
+    meet = ", or a quick 10-min Google Meet if that's easier" if offer_meet else ""
     # CAN-SPAM footer on every cold touch: working opt-out + physical postal
     # address ([Mailing address] is filled from Settings at render time; a PO Box
     # is fine and keeps a home address out of cold email).
@@ -228,32 +228,33 @@ def generate_website_suite(
     give = _variant(seed + "give", [
         f"I can mock up a new homepage for {company_name}, free{meet}. Worth sending over?",
         f"Happy to send a free mockup of your new homepage{meet}. Want me to?",
-        f"I already started sketching what a new homepage could look like — free{meet}. Interested in seeing it?",
+        f"I already started sketching what a new homepage could look like, free{meet}. Interested in seeing it?",
     ])
     email_body = f"""{greeting}{issue_clause}
 
-I design fast, mobile-first sites for local {nouns}{f' around {city}' if city else ''}{studio_clause} — the kind that turn a Google search into a phone call.
+I design fast, mobile-first sites for local {nouns}{f' around {city}' if city else ''}{studio_clause}, the kind that turn a Google search into a phone call.
 
 {give}
 
-— [Your name]{footer}"""
+- [Your name]{footer}"""
 
     # ── Long version ─────────────────────────────────────────────────────────
-    fix_lines = "\n".join(f"• {i}" for i in issues)
+    # "-" bullets, not "•": that's what a person types in Gmail.
+    fix_lines = "\n".join(f"- {i}" for i in issues)
     email_long = f"""{greeting}{issue_clause}
 
 Here's what stood out when I looked:
 {fix_lines}
 
-None of it is hard to fix. I design fast, mobile-first sites for local {nouns} — HTTPS, click-to-call, a booking/contact form, and set up so you show up when {how_found}.{proof}
+None of it is hard to fix. I design fast, mobile-first sites for local {nouns}: HTTPS, click-to-call, a booking/contact form, and set up so you show up when {how_found}.{proof}
 
 I'd rather show than tell: I can put together a quick mockup of a new homepage for {company_name}, free, and you decide from there{meet}. Want me to send it over?
 
-— [Your name]"""
+- [Your name]"""
 
     # ── Mini-audit (the give-first asset, all real findings) ─────────────────
     audit_lines = [
-        f"A quick, honest look at {company_name}'s website — the things I'd fix first:\n"
+        f"A quick, honest look at {company_name}'s website. The things I'd fix first:\n"
     ]
     for i, issue in enumerate(issues, 1):
         audit_lines.append(f"{i}. {issue[0].upper()}{issue[1:]}.")
@@ -262,11 +263,11 @@ I'd rather show than tell: I can put together a quick mockup of a new homepage f
     if signals.get("pagespeed") is not None:
         audit_lines.append(f"\n(Google currently scores its mobile speed {signals['pagespeed']}/100.)")
     audit_lines.append(
-        f"\nI'd rebuild it as a fast, mobile-first site — {', '.join(offer['deliverables'])}. "
+        f"\nI'd rebuild it as a fast, mobile-first site: {', '.join(offer['deliverables'])}. "
         f"Builds start at ${offer['setup']:,} (most owners pick the "
         f"${getattr(config, 'WEB_TIER2_PRICE', 2400):,} version with online booking and review "
         f"collection), + ${offer['monthly']}/mo for hosting, security, and small changes."
-        + (f"\nRecent work — open it, your name's already on it: {plink}" if portfolio else "")
+        + (f"\nRecent work (your name's already on it): {plink}" if portfolio else "")
         + f"\nHappy to send a free homepage mockup first so you can see it before deciding{meet}."
     )
     mini_audit = "\n".join(audit_lines)
@@ -277,63 +278,63 @@ I'd rather show than tell: I can put together a quick mockup of a new homepage f
     # already found 2-3 real flaws per site.
     second_issue = issues[1] if len(issues) > 1 else None
     if second_issue:
-        fu1_open = (f"One more thing I noticed while I had your site open — "
+        fu1_open = (f"One more thing I noticed while I had your site open: "
                     f"{second_issue}. That's on top of what I mentioned last week.")
     else:
-        fu1_open = (f"Circling back — short version: {lead_issue}, and it's the kind "
+        fu1_open = (f"Circling back with the short version: {lead_issue}, and it's the kind "
                     f"of thing quietly sending {how_found} to competitors.")
     follow_up_1 = f"""{greeting}{fu1_open}
 
-The free homepage mockup for {company_name} is still on the table — just say the word and I'll send it over.
+The free homepage mockup for {company_name} is still on the table. Just say the word and I'll send it over.
 
-— [Your name]{footer}"""
+- [Your name]{footer}"""
 
-    follow_up_2 = f"""{greeting}Last note from me — if the website isn't a priority right now, totally understand and I'll leave it here.
+    follow_up_2 = f"""{greeting}Last note from me. If the website isn't a priority right now, totally understand and I'll leave it here.
 
 If it ever is, I make it painless: I do the whole build, you just approve it. My door's open.
 
-— [Your name]{footer}"""
+- [Your name]{footer}"""
 
-    breakup_email = f"""{greeting}Closing the loop on this one — sounds like the timing isn't right, which is completely fair.
+    breakup_email = f"""{greeting}Closing the loop on this one. Sounds like the timing isn't right, which is completely fair.
 
 If {lead_issue.split(' (')[0]} ever starts costing you real business, reach out anytime. Either way, wishing {company_name} the best.
 
-— [Your name]{footer}"""
+- [Your name]{footer}"""
 
     # ── Objection responses (website-specific) ───────────────────────────────
     objection_responses = {
         "We already have a website": (
-            f"You do — and that's exactly why I reached out. The issue isn't that it "
+            f"You do, and that's exactly why I reached out. The issue isn't that it "
             f"doesn't exist, it's that {lead_issue}. I'd be rebuilding what you have into "
             f"something that actually converts, not starting from zero."),
         "We're too busy right now": (
-            f"Totally get it — that's the point, you shouldn't have to touch it. I do the "
+            f"Totally get it. That's the point, you shouldn't have to touch it. I do the "
             f"whole build and just send you a link to approve. Takes about an hour of your time, "
             f"start to finish."),
         "We get all our business by word of mouth": (
-            f"That's great, and a good site makes word of mouth easier — when someone recommends "
+            f"That's great, and a good site makes word of mouth easier. When someone recommends "
             f"you, the first thing the friend does is look you up. Right now {lead_issue}, so that "
             f"referral can stall right there."),
         "How much does it cost?": (
             f"Starts at ${offer_pack()['setup']:,} for a clean rebuild. Most owners go with the "
-            f"${getattr(config, 'WEB_TIER2_PRICE', 2400):,} version — it adds online booking, review "
+            f"${getattr(config, 'WEB_TIER2_PRICE', 2400):,} version, which adds online booking, review "
             f"collection, and the local-SEO setup that actually brings calls in. Either way it's "
             f"${offer_pack()['monthly']}/mo after for hosting, security, and small changes. I'll send a "
             f"free homepage mockup first so you know exactly what you're getting before you spend anything."),
         "My nephew/friend handles our website": (
-            f"Honestly, that's great — keep them. The gap isn't effort, it's that {lead_issue}, and "
+            f"Honestly, that's great. Keep them. The gap isn't effort, it's that {lead_issue}, and "
             f"fixing that takes tooling most part-timers don't touch. I can rebuild the foundation and "
             f"hand it back so they can keep running day-to-day updates."),
         "No budget right now": (
-            f"Understood — no pressure. Two options if it helps: I can start with just a fast one-page "
+            f"Understood, no pressure. Two options if it helps: I can start with just a fast one-page "
             f"version now and grow it later, or I'll send the free mockup anyway so you have it in hand "
             f"when the timing's right. Which sounds better?"),
         "We tried this before and it didn't help": (
-            f"Fair — a lot of sites get built and then just sit there. The difference is I build for "
+            f"Fair. A lot of sites get built and then just sit there. The difference is I build for "
             f"the one job that matters (turning a search into a call) and set up the Google Business "
             f"side so people actually find it. Happy to show you the difference in a quick mockup."),
         "Send me some info": (
-            f"On it — I'll put together a short, specific breakdown for {company_name} (what I'd fix and "
+            f"On it. I'll put together a short, specific breakdown for {company_name} (what I'd fix and "
             f"a mockup of the new homepage). No deck, no fluff."),
     }
 

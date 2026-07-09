@@ -61,7 +61,7 @@ def status() -> dict:
 
 def reconcile(db, log=print) -> dict:
     """Flip lead statuses to match Gmail. Returns a summary + the reply list."""
-    out = {"sent_detected": 0, "replies_detected": 0, "checked": 0,
+    out = {"sent_detected": 0, "relinked": 0, "replies_detected": 0, "checked": 0,
            "read_authorized": gmail_read.is_configured(),
            "compose_authorized": gmail_drafts.is_configured(),
            "replies": []}
@@ -72,19 +72,48 @@ def reconcile(db, log=print) -> dict:
                          Lead.notes.like("%gmail_draft:%"))
                  .all())
 
-    # ── 1) SENT: a draft that vanished from Drafts was sent ──────────────────
-    current = gmail_drafts.list_draft_ids() if gmail_drafts.is_configured() else None
-    if current is not None:
+    # ── 1) SENT / RE-LINK: match live drafts by recipient, never by draft id ──
+    # Draft ids are unstable: the Gmail web UI re-creates the draft (new id) the
+    # moment Ian edits one during review, so "id vanished" does NOT mean "sent"
+    # (that assumption would have falsely marked 17 unsent drafts as sent on
+    # 2026-07-09). Ground truth instead: still a draft addressed to the prospect
+    # -> re-link the fresh id; no draft left -> confirm against in:sent when
+    # read access exists, else treat missing-from-drafts as sent.
+    drafts = gmail_drafts.list_drafts_meta() if gmail_drafts.is_configured() else None
+    read_ok = gmail_read.is_configured()
+    if drafts is not None:
+        by_to = {d["to"]: d["id"] for d in drafts if d["to"]}
         for lead in website:
             if lead.status not in ("queued", "approved"):
                 continue
             did = _marker(lead.notes, "gmail_draft")
-            if did and did not in current:
-                lead.status = "sent"
+            email = (lead.contact_email or "").strip().lower()
+            if not did:
+                continue
+            live_id = by_to.get(email) if email else None
+            if live_id:
+                if live_id != did:
+                    lead.notes = lead.notes.replace(f"gmail_draft:{did}",
+                                                    f"gmail_draft:{live_id}")
+                    lead.last_action_at = _now()
+                    out["relinked"] += 1
+                    log(f"  re-linked: {lead.company_name} (draft was edited in Gmail)")
+                continue  # still sitting in Drafts -> definitely not sent
+            if read_ok and email:
+                epoch = gmail_read.latest_epoch_ms(f"in:sent to:{email}")
+                if not epoch:
+                    # Not in Drafts and never in Sent: deleted by hand. Leave the
+                    # status alone and let Ian decide what the lead becomes.
+                    log(f"  ? {lead.company_name}: draft gone but nothing in Sent — skipped")
+                    continue
+                when = datetime.fromtimestamp(epoch / 1000.0, tz=timezone.utc)
+                lead.sent_at = lead.sent_at or when
+            else:
                 lead.sent_at = lead.sent_at or _now()
-                lead.last_action_at = _now()
-                out["sent_detected"] += 1
-                log(f"  sent: {lead.company_name}")
+            lead.status = "sent"
+            lead.last_action_at = _now()
+            out["sent_detected"] += 1
+            log(f"  sent: {lead.company_name}")
 
     # ── 2) REPLIED: an inbound message from a prospect we emailed ────────────
     if gmail_read.is_configured():
