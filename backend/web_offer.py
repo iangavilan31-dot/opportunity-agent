@@ -120,6 +120,9 @@ def generate_website_suite(
     portfolio = getattr(config, "PORTFOLIO_URL", "").strip()
     offer_meet = getattr(config, "OFFER_MEET", False)
     studio_clause = f" (I run {studio}, a small studio)" if studio else ""
+    # No links in email 1 — links in cold first-touches raise spam classification,
+    # and the mockup-on-reply flow delivers the proof anyway. The portfolio URL
+    # lives in the on-reply materials (long version, mini-audit, "send me info").
     proof = ""
     if portfolio:
         proof = _variant(seed + "proof", [
@@ -128,6 +131,11 @@ def generate_website_suite(
             f" A few of my recent sites: {portfolio}.",
         ])
     meet = " — or a quick 10-min Google Meet if that's easier" if offer_meet else ""
+    # CAN-SPAM footer on every cold touch: working opt-out + physical postal
+    # address ([Mailing address] is filled from Settings at render time; a PO Box
+    # is fine and keeps a home address out of cold email).
+    footer = ('\n\nIf you\'d rather not hear from me, just reply "no thanks" '
+              "and I won't email again.\n[Mailing address]")
 
     # ── Subject: specific, honest, no fake Re: ───────────────────────────────
     codes = {f["code"] for f in signals.get("findings", [])}
@@ -159,11 +167,11 @@ def generate_website_suite(
     ])
     email_body = f"""{greeting}{issue_clause}
 
-I design fast, mobile-first sites for local {noun}s{f' around {city}' if city else ''}{studio_clause} — the kind that turn a Google search into a phone call.{proof}
+I design fast, mobile-first sites for local {noun}s{f' around {city}' if city else ''}{studio_clause} — the kind that turn a Google search into a phone call.
 
 {give}
 
-— [Your name]"""
+— [Your name]{footer}"""
 
     # ── Long version ─────────────────────────────────────────────────────────
     fix_lines = "\n".join(f"• {i}" for i in issues)
@@ -190,8 +198,9 @@ I'd rather show than tell: I can put together a quick mockup of a new homepage f
         audit_lines.append(f"\n(Google currently scores its mobile speed {signals['pagespeed']}/100.)")
     audit_lines.append(
         f"\nI'd rebuild it as a fast, mobile-first site — {', '.join(offer['deliverables'])}. "
-        f"I do this for local {noun}s for ${offer['setup']:,} to build "
-        f"(+ ${offer['monthly']}/mo for hosting, security, and small changes)."
+        f"Builds start at ${offer['setup']:,} (most owners pick the "
+        f"${getattr(config, 'WEB_TIER2_PRICE', 2400):,} version with online booking and review "
+        f"collection), + ${offer['monthly']}/mo for hosting, security, and small changes."
         + (f" Recent work: {portfolio}." if portfolio else "")
         + f" Happy to send a free homepage mockup first so you can see it before deciding{meet}."
     )
@@ -202,19 +211,19 @@ I'd rather show than tell: I can put together a quick mockup of a new homepage f
 
 Short version: {lead_issue}, and it's the kind of thing quietly sending {how_found} to competitors. I already sketched what a new homepage for {company_name} could look like — just say the word and I'll send it over, no charge.
 
-— [Your name]"""
+— [Your name]{footer}"""
 
     follow_up_2 = f"""{greeting}Last note from me — if the website isn't a priority right now, totally understand and I'll leave it here.
 
 If it ever is, I make it painless: I do the whole build, you just approve it. My door's open.
 
-— [Your name]"""
+— [Your name]{footer}"""
 
     breakup_email = f"""{greeting}Closing the loop on this one — sounds like the timing isn't right, which is completely fair.
 
 If {lead_issue.split(' (')[0]} ever starts costing you real business, reach out anytime. Either way, wishing {company_name} the best.
 
-— [Your name]"""
+— [Your name]{footer}"""
 
     # ── Objection responses (website-specific) ───────────────────────────────
     objection_responses = {
@@ -231,9 +240,19 @@ If {lead_issue.split(' (')[0]} ever starts costing you real business, reach out 
             f"you, the first thing the friend does is look you up. Right now {lead_issue}, so that "
             f"referral can stall right there."),
         "How much does it cost?": (
-            f"${offer_pack()['setup']:,} to build it, then ${offer_pack()['monthly']}/mo for hosting, "
-            f"security, and small changes so it stays current. I'll send a free homepage mockup first "
-            f"so you know exactly what you're getting before you spend anything."),
+            f"Starts at ${offer_pack()['setup']:,} for a clean rebuild. Most owners go with the "
+            f"${getattr(config, 'WEB_TIER2_PRICE', 2400):,} version — it adds online booking, review "
+            f"collection, and the local-SEO setup that actually brings calls in. Either way it's "
+            f"${offer_pack()['monthly']}/mo after for hosting, security, and small changes. I'll send a "
+            f"free homepage mockup first so you know exactly what you're getting before you spend anything."),
+        "My nephew/friend handles our website": (
+            f"Honestly, that's great — keep them. The gap isn't effort, it's that {lead_issue}, and "
+            f"fixing that takes tooling most part-timers don't touch. I can rebuild the foundation and "
+            f"hand it back so they can keep running day-to-day updates."),
+        "No budget right now": (
+            f"Understood — no pressure. Two options if it helps: I can start with just a fast one-page "
+            f"version now and grow it later, or I'll send the free mockup anyway so you have it in hand "
+            f"when the timing's right. Which sounds better?"),
         "We tried this before and it didn't help": (
             f"Fair — a lot of sites get built and then just sit there. The difference is I build for "
             f"the one job that matters (turning a search into a call) and set up the Google Business "

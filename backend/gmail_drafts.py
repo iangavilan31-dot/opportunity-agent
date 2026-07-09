@@ -110,6 +110,28 @@ def create_draft(to: str, subject: str, body: str, from_name: str = "") -> str |
         return None
 
 
+def list_draft_ids() -> set[str] | None:
+    """All current draft ids in the account (None = not configured / API failure).
+    Used to detect sends: a draft that vanished from Drafts was sent (or deleted)."""
+    svc = _get_service()
+    if svc is None:
+        return None
+    ids: set[str] = set()
+    try:
+        token = None
+        while True:
+            resp = svc.users().drafts().list(
+                userId="me", maxResults=500, pageToken=token).execute()
+            for d in resp.get("drafts", []):
+                ids.add(d.get("id"))
+            token = resp.get("nextPageToken")
+            if not token:
+                return ids
+    except Exception as e:
+        print(f"[gmail_drafts] list_draft_ids failed: {e}")
+        return None
+
+
 def authorize():
     """Run interactively once to grant access (opens a browser)."""
     if not _LIBS:

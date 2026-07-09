@@ -8,3 +8,6 @@ backend/gmail_token.json
 backend/opportunity_agent.db
 backend/sender_profile.json
 frontend/dist/
+tools/*.exe
+backend/screenshots/
+targets.csv

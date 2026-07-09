@@ -16,6 +16,9 @@ DEFAULTS = {
     "positioning": "",          # e.g. "I automate back-office workflows for small teams"
     "calendar_link": "",        # e.g. "cal.com/ian/15min"
     "sender_email": "",         # reply-to / from address (info only)
+    # CAN-SPAM requires a physical postal address in every commercial email.
+    # A PO Box counts (and keeps a home address off cold emails).
+    "postal_address": "",       # e.g. "Gavika · PO Box 123, Phoenix, AZ 85001"
 }
 
 
@@ -60,12 +63,17 @@ def build_signature(settings: dict | None = None) -> str:
 
 
 def apply_signature(text: str | None, settings: dict | None = None) -> str:
-    """Replace the [Your name] placeholder with the real signature block."""
+    """Replace the [Your name] / [Mailing address] placeholders with real values."""
     if not text:
         return text or ""
-    sig = build_signature(settings)
+    s = settings or load_settings()
+    sig = build_signature(s)
     # Handle both "— [Your name]" and bare "[Your name]"
-    return text.replace("[Your name]", sig)
+    out = text.replace("[Your name]", sig)
+    addr = s.get("postal_address", "").strip()
+    if addr:
+        out = out.replace("[Mailing address]", addr)
+    return out
 
 
 def is_configured() -> bool:

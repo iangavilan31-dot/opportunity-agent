@@ -27,6 +27,9 @@ import web_targets
 import website_signals
 import web_offer
 import gmail_drafts
+import verify_email
+import followups
+import screenshots
 
 
 def _log(run_log: list[str], msg: str):
@@ -46,10 +49,17 @@ _CATEGORY_VALUE = {
 }
 
 
-def _reply_likelihood(signals: dict, email: str, category: str) -> float:
+def _reply_likelihood(signals: dict, email: str, category: str, t: dict | None = None) -> float:
     """Rank how likely this prospect is to reply / be worth sending today.
     Rewards: a reachable email (can become a ready draft), a worse site (more
-    need), strong concrete stats to cite, higher-value niche, confirmed-active."""
+    need), strong concrete stats to cite, higher-value niche, confirmed-active.
+
+    Research-driven boosts (2026-07-08 canon):
+    - "Successful business + neglected site" is the ideal prospect — reviews are
+      the free revenue/activity proxy (they've proven customers + reputation care).
+    - Ad pixels on the site = already pays for marketing (rank-only; never cited).
+    - A phone number keeps no-email leads worth queueing (callable)."""
+    t = t or {}
     score = 0.0
     score += 40 if email else 0
     score += signals.get("opportunity_score", 0) * 0.4
@@ -58,6 +68,18 @@ def _reply_likelihood(signals: dict, email: str, category: str) -> float:
     score += _CATEGORY_VALUE.get((category or "generic").lower(), 5)
     if signals.get("reachable") or signals.get("social_only"):
         score += 5
+    reviews = int(t.get("review_count") or 0)
+    rating = float(t.get("rating") or 0)
+    if reviews >= 20 and rating >= 4.0:
+        score += 12          # thriving business, neglected site — the sweet spot
+        if reviews >= 50:
+            score += 6
+    elif reviews == 0 and not t.get("domain"):
+        score -= 5           # no site AND no reviews: may not be a real buyer yet
+    if signals.get("marketing_pixels"):
+        score += 8
+    if not email and t.get("phone"):
+        score += 3
     return round(score, 1)
 
 
@@ -119,10 +141,16 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
                     skipped_lowopp += 1
                     continue
                 email = (t.get("contact_email") or "").strip() or signals.get("contact_email", "")
+                # Carry the Maps qualification data into the stored signals so the
+                # UI/notes can show it ("4.6 stars, 120 reviews, has a phone").
+                if t.get("review_count") or t.get("rating") or t.get("phone"):
+                    signals["maps"] = {"rating": t.get("rating"),
+                                       "review_count": t.get("review_count"),
+                                       "phone": t.get("phone", "")}
                 candidates.append({
                     "t": t, "signals": signals, "email": email, "job_id": job_id,
                     "opportunity": opportunity,
-                    "likelihood": _reply_likelihood(signals, email, t.get("category", "generic")),
+                    "likelihood": _reply_likelihood(signals, email, t.get("category", "generic"), t),
                 })
 
         # ── Rank: keep the best `count`, most-likely-to-reply first ──────────
@@ -148,6 +176,16 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
             noun = web_offer._ctx(category)[0]
             issues = signals.get("headline_issues", [])
             host = website_signals.clean_host(t.get("domain", ""))
+
+            # Verify before drafting — bounces (not volume) are what get a small
+            # Gmail sender flagged. Invalid -> keep the lead, drop the address.
+            verification = {"level": "", "ok": False}
+            if email:
+                verification = verify_email.verify(email)
+                if not verification["ok"]:
+                    _log(run_log, f"    dropped invalid email for {company}: {email}")
+                    email = ""
+                    c["email"] = ""
 
             draft_note = None
             if gmail_on and email:
@@ -178,8 +216,8 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
                 offer=json.dumps(suite["offer"]),
                 contact_email=email,
                 contact_source=("csv" if t.get("contact_email") else ("website" if email else "")),
-                contact_verified="unverified" if email else "",
-                verification_score=0,
+                contact_verified=(verification["level"] or "unverified") if email else "",
+                verification_score={"valid": 90, "risky": 55}.get(verification["level"], 0),
                 contact_confidence=55 if email else 0,
                 sendability="review",
                 subject_line=suite["subject_line"],
@@ -200,6 +238,34 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
             tag = "DRAFTED" if draft_note else "queued"
             _log(run_log, f"  + [{c['likelihood']:.0f}] {company} (opp {c['opportunity']}) {tag} - "
                           f"{issues[0] if issues else 'audited'}")
+
+        # ── Phase 3: follow-up cadence (day +3 / +10) on previously sent leads ──
+        try:
+            fu = followups.process(db, log=lambda m: _log(run_log, m))
+            if "skipped" in fu:
+                _log(run_log, f"Follow-ups: skipped ({fu['skipped']})")
+            else:
+                _log(run_log, f"Follow-ups: {fu['sends_detected']} sends detected, "
+                              f"{fu['fu1_drafted']} FU1 + {fu['fu2_drafted']} FU2 drafted "
+                              f"({fu['tracked']} leads tracked)")
+        except Exception as e:
+            _log(run_log, f"Follow-ups failed (non-fatal): {e}")
+
+        # ── Phase 4: screenshots of the selected sites (the "See" stage) ────────
+        if getattr(config, "SCREENSHOTS_ENABLED", True):
+            try:
+                shots = [{"company": c["t"]["company_name"],
+                          "url": (f"https://{website_signals.clean_host(c['t'].get('domain',''))}"
+                                  if c["t"].get("domain") and c["signals"].get("reachable") else ""),
+                          "issues": c["signals"].get("headline_issues", [])}
+                         for c in selected]
+                sheet = screenshots.capture(
+                    shots, max_shots=getattr(config, "SCREENSHOTS_MAX", 40),
+                    log=lambda m: _log(run_log, m))
+                if sheet:
+                    _log(run_log, f"Visual grading sheet ready: {sheet}")
+            except Exception as e:
+                _log(run_log, f"Screenshots failed (non-fatal): {e}")
 
         run.leads_scored = len(targets)
         run.leads_passed = len(candidates)

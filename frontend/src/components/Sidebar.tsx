@@ -3,7 +3,12 @@ import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Inbox, Send, GitBranch, Mail, Repeat, BarChart3, Settings as SettingsIcon } from 'lucide-react'
 import { api } from '../api'
 
-const nav = [
+const nav: Array<{
+  to: string
+  icon: typeof LayoutDashboard
+  label: string
+  badge?: 'queued' | 'approved' | 'followups_due'
+}> = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/queue', icon: Inbox, label: 'Queue', badge: 'queued' },
   { to: '/send', icon: Send, label: 'Send', badge: 'approved' },
@@ -12,7 +17,7 @@ const nav = [
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/pipeline', icon: GitBranch, label: 'Pipeline' },
   { to: '/settings', icon: SettingsIcon, label: 'Settings' },
-] as const
+]
 
 export default function Sidebar() {
   const [counts, setCounts] = useState<Record<string, number>>({})

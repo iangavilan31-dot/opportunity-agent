@@ -164,6 +164,7 @@ def _empty_result(domain: str) -> dict:
         "builder": None,
         "framework": None,
         "modern_hits": 0,
+        "marketing_pixels": [],
         "copyright_year": None,
         "contact_email": "",
         "findings": [],
@@ -255,6 +256,42 @@ def analyze(domain: str) -> dict:
             framework = label
             break
     res["framework"] = framework
+
+    # ── Ad pixels = "already pays for marketing" (RANK-ONLY signal) ──────────
+    # A business running paid ads onto a weak site is the ideal rebuild prospect.
+    # Used only to prioritize — never claimed in an email (pixels persist years
+    # after spend stops, and GA alone is free analytics, not spend).
+    pixels = []
+    if "connect.facebook.net" in low or "fbq(" in low:
+        pixels.append("Meta pixel")
+    if "googleadservices.com" in low or re.search(r"gtag\(['\"]config['\"],\s*['\"]aw-", low):
+        pixels.append("Google Ads tag")
+    if "analytics.tiktok.com" in low:
+        pixels.append("TikTok pixel")
+    if "bat.bing.com" in low:
+        pixels.append("Microsoft Ads tag")
+    res["marketing_pixels"] = pixels
+
+    # ── Legacy tech fingerprints (citable, hard "outdated" evidence) ─────────
+    if re.search(r"jquery[/-]1\.\d|jquery(?:\.min)?\.js\?ver=1\.", low):
+        score += 15
+        strong_outdated = True
+        add("med", "old_jquery", "runs a ~2013-era JavaScript library (jQuery 1.x)")
+    if ".swf" in low:
+        score += 30
+        strong_outdated = True
+        add("high", "flash", "still embeds Flash, which browsers dropped in 2020")
+    if "<frameset" in low:
+        score += 30
+        strong_outdated = True
+        add("high", "frameset", "built with HTML framesets (a 1990s technique)")
+    if "<marquee" in low:
+        score += 15
+        strong_outdated = True
+        add("med", "marquee", "uses scrolling marquee text (a 1990s effect)")
+    if re.search(r"bootstrap[/-]3\.\d|bootstrap[/-]2\.\d", low):
+        score += 10
+        add("med", "old_bootstrap", "styled with a 2013-era CSS framework (Bootstrap 2/3)")
 
     # ── HTTPS / "Not Secure" ────────────────────────────────────────────────
     if not https_ok:

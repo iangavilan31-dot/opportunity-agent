@@ -216,12 +216,23 @@ def _load_csv() -> list[dict]:
                     name = (row.get("company_name") or row.get("name") or "").strip()
                     if not name:
                         continue
+                    try:
+                        rating = float(row.get("rating") or 0)
+                    except (TypeError, ValueError):
+                        rating = 0.0
+                    try:
+                        review_count = int(float(row.get("review_count") or 0))
+                    except (TypeError, ValueError):
+                        review_count = 0
                     rows.append({
                         "company_name": name,
                         "domain": (row.get("domain") or row.get("website") or "").strip(),
                         "category": (row.get("category") or "generic").strip(),
                         "city": (row.get("city") or row.get("location") or "").strip(),
                         "contact_email": (row.get("contact_email") or row.get("email") or "").strip(),
+                        "phone": (row.get("phone") or "").strip(),
+                        "rating": rating,
+                        "review_count": review_count,
                         "signals": None,  # force live analysis
                     })
         except Exception as e:
@@ -234,7 +245,21 @@ def _load_csv() -> list[dict]:
 
 
 def load_targets(limit: int = 50) -> tuple[list[dict], str]:
-    """Return (targets, source). Priority: targets.csv -> OpenStreetMap -> seed."""
+    """Return (targets, source).
+    Priority: Google Maps scrape (targets.csv, auto-refreshed weekly)
+              -> OpenStreetMap -> seed."""
+    # Refresh targets.csv from Google Maps when missing/stale (free, local binary).
+    if getattr(config, "SOURCING_ENABLED", False):
+        try:
+            import source_maps
+            if source_maps.scraper_available():
+                age = source_maps.csv_age_days()
+                if age is None or age >= getattr(config, "SOURCING_REFRESH_DAYS", 7):
+                    print("[web_targets] targets.csv missing/stale -> refreshing from Google Maps")
+                    source_maps.refresh()
+        except Exception as e:
+            print(f"[web_targets] maps refresh skipped ({e})")
+
     csv_targets = _load_csv()
     if csv_targets:
         return csv_targets[:limit], "csv"

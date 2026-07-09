@@ -27,7 +27,12 @@ AUTOPILOT_MIN_OPPORTUNITY = int(os.getenv("AUTOPILOT_MIN_OPPORTUNITY", "45"))
 # Set True only once a warmed sending domain is live (full auto-send).
 AUTOPILOT_AUTO_APPROVE = os.getenv("AUTOPILOT_AUTO_APPROVE", "false").lower() == "true"
 # Website-rebuild offer pricing (edit to your real numbers).
+# Three tiers: research says $1,200 is the LOW end of the 2025-26 solo market —
+# anchor with tiers in the close/playbook layer (never in cold email 1) and let
+# most deals land on the middle. Cold email quotes "from $<setup>".
 WEB_SETUP_PRICE = int(os.getenv("WEB_SETUP_PRICE", "1200"))
+WEB_TIER2_PRICE = int(os.getenv("WEB_TIER2_PRICE", "2400"))
+WEB_TIER3_PRICE = int(os.getenv("WEB_TIER3_PRICE", "4800"))
 WEB_MONTHLY_PRICE = int(os.getenv("WEB_MONTHLY_PRICE", "99"))
 
 # Outreach identity + social proof shown in every email.
@@ -47,10 +52,17 @@ AUTOPILOT_WORKERS = int(os.getenv("AUTOPILOT_WORKERS", "12"))
 # (see GMAIL_SETUP.md). Falls back to Queue + one-click compose links if not set up.
 GMAIL_ENABLED = os.getenv("GMAIL_ENABLED", "true").lower() == "true"
 
-# ── Free auto-sourcing via OpenStreetMap (no API key, no credit card, $0) ─────
-# When on and there's no targets.csv, the autopilot pulls real local businesses
-# by niche + city from OpenStreetMap each morning. Cities are separated by ";".
+# ── Free auto-sourcing (no API key, no credit card, $0) ──────────────────────
+# Primary: Google Maps via the gosom scraper binary in tools/ (writes
+# targets.csv with rating + review_count + phone; refreshed when stale).
+# Fallback: OpenStreetMap. Cities are separated by ";".
 SOURCING_ENABLED = os.getenv("SOURCING_ENABLED", "true").lower() == "true"
+# Re-scrape targets.csv when older than this many days.
+SOURCING_REFRESH_DAYS = int(os.getenv("SOURCING_REFRESH_DAYS", "7"))
+# Scroll depth per Maps query (~21 results per scroll; 2 ≈ 40+ places/query).
+SOURCING_DEPTH = int(os.getenv("SOURCING_DEPTH", "2"))
+# Hard cap per city so a hung scrape can never eat the morning run.
+SOURCING_CITY_TIMEOUT_S = int(os.getenv("SOURCING_CITY_TIMEOUT_S", "1200"))
 SOURCING_CITIES = [c.strip() for c in os.getenv(
     "SOURCING_CITIES", "Phoenix, AZ;Scottsdale, AZ;Mesa, AZ").split(";") if c.strip()]
 # High-ROI, often-neglected industries (trades + storefront services). Deliberately
@@ -59,11 +71,24 @@ SOURCING_NICHES = [n.strip() for n in os.getenv(
     "SOURCING_NICHES", "auto,dental,law,chiropractor,plumbing,hvac,roofing,electrician,vet"
 ).split(",") if n.strip()]
 SOURCING_MAX_PER_QUERY = int(os.getenv("SOURCING_MAX_PER_QUERY", "60"))
-# Only source businesses that already have a website -> the analyzer can audit
-# their real site AND scrape a contact email, so far more become ready-to-send
-# drafts. Set false to also pull "no website" businesses (great pitch, but no
-# email to draft to — you'd supply the contact yourself).
-SOURCING_REQUIRE_WEBSITE = os.getenv("SOURCING_REQUIRE_WEBSITE", "true").lower() == "true"
+# Keep no-website businesses too — "you have no site" is the strongest pitch,
+# and Maps sourcing gives us their phone number for manual contact. They rank
+# below bad-site-with-reviews leads (which have proven they'll pay for a site).
+SOURCING_REQUIRE_WEBSITE = os.getenv("SOURCING_REQUIRE_WEBSITE", "false").lower() == "true"
+
+# ── Screenshot pipeline (visual grading) ─────────────────────────────────────
+# After ranking, capture mobile+desktop screenshots of the selected leads into
+# backend/screenshots/YYYY-MM-DD/ plus a contact-sheet HTML for a 5-minute skim.
+SCREENSHOTS_ENABLED = os.getenv("SCREENSHOTS_ENABLED", "true").lower() == "true"
+SCREENSHOTS_MAX = int(os.getenv("SCREENSHOTS_MAX", "40"))
+
+# ── Follow-up cadence (day 0 / +3 / +10) ─────────────────────────────────────
+# Research: follow-ups roughly double replies; 3 touches then stop. The batch
+# drafts follow-ups only for leads whose previous email was actually sent
+# (Gmail draft disappeared) and that haven't been marked replied in the app.
+FOLLOWUP_ENABLED = os.getenv("FOLLOWUP_ENABLED", "true").lower() == "true"
+FOLLOWUP_1_DAYS = int(os.getenv("FOLLOWUP_1_DAYS", "3"))
+FOLLOWUP_2_DAYS = int(os.getenv("FOLLOWUP_2_DAYS", "10"))
 
 DB_PATH = os.getenv("DB_PATH", "opportunity_agent.db")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5120")

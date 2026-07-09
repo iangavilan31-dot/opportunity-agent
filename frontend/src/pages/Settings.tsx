@@ -5,6 +5,7 @@ import { api } from '../api'
 export default function Settings() {
   const [form, setForm] = useState({
     sender_name: '', positioning: '', calendar_link: '', sender_email: '',
+    postal_address: '',
   })
   const [preview, setPreview] = useState('')
   const [saved, setSaved] = useState(false)
@@ -15,6 +16,7 @@ export default function Settings() {
       setForm({
         sender_name: s.sender_name, positioning: s.positioning,
         calendar_link: s.calendar_link, sender_email: s.sender_email,
+        postal_address: s.postal_address ?? '',
       })
       setPreview(s.signature_preview)
     })
@@ -62,6 +64,7 @@ export default function Settings() {
           {field('positioning', 'One-line positioning (optional)', 'I automate back-office workflows for small teams', 'Appended after your name as a credibility signal')}
           {field('calendar_link', 'Calendar link (optional)', 'cal.com/ian/15min', 'Added to your signature so replies can self-book')}
           {field('sender_email', 'Sending email (optional)', 'ian@youragency.com', 'For your reference — used when exporting .eml')}
+          {field('postal_address', 'Mailing address (CAN-SPAM)', 'Gavika · PO Box 123, Phoenix, AZ 85001', 'Required by law in every commercial email — a PO Box works and keeps your home address private')}
 
           <button
             onClick={save}

@@ -1,5 +1,21 @@
 import type { Lead, Stats, LeadListResponse, PipelineStatus, PipelineRun } from './types'
 
+export interface FollowupItem {
+  id: number
+  company_name: string
+  contact_name: string | null
+  contact_email: string | null
+  niche_label: string | null
+  stage: number
+  stage_label: string
+  days_waiting: number
+  days_until_due: number
+  subject_line: string
+  body: string
+  gmail_compose_url: string
+  has_email: boolean
+}
+
 const BASE = '/api'
 
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -116,6 +132,7 @@ export const api = {
       positioning: string
       calendar_link: string
       sender_email: string
+      postal_address?: string
       configured: boolean
       signature_preview: string
     }>('/settings'),
@@ -125,6 +142,7 @@ export const api = {
     positioning?: string
     calendar_link?: string
     sender_email?: string
+    postal_address?: string
   }) => req<{ configured: boolean; signature_preview: string }>('/settings', {
     method: 'PUT', body: JSON.stringify(body),
   }),
