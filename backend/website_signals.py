@@ -181,6 +181,35 @@ def is_trustworthy_email(email: str, host: str, *, from_mailto: bool = False,
     return False
 
 
+# Generic role inboxes: read by whoever staffs the front desk, pounded by spam,
+# quick to hit report-spam, and the reader usually can't hire us anyway. A
+# person-named inbox (betsy@, goli@, shane.mccall@) is read by a human with a
+# name — dramatically better reply odds. So person-looking locals now outrank
+# role accounts (2026-07-09, from send-screenshot review: almost every TO was
+# info@/office@/support@).
+_ROLE_LOCALS = set(_ROLE_PREFERENCE) | {
+    "support", "service", "sales", "welcome", "intake", "admin", "billing",
+    "team", "mail", "email", "help", "hi", "appointments", "appointment",
+    "reception", "enquiries", "inquiries", "inquiry", "bookings", "booking",
+    "schedule", "scheduling", "hr", "jobs", "careers", "marketing", "accounts",
+    "accounting", "customerservice", "customercare", "frontoffice",
+}
+# Never pick these even as a last resort — nobody reads them.
+_NEVER_LOCALS = {"noreply", "no-reply", "donotreply", "do-not-reply",
+                 "webmaster", "postmaster", "abuse", "privacy", "unsubscribe",
+                 "mailer-daemon", "newsletter"}
+
+
+def _looks_personal(local: str) -> bool:
+    """Does this local part read like a person (goli, betsy, shane.mccall,
+    drkent) rather than a desk (info, office2, frontdesk)? Letters only once
+    separators are stripped, sane length, and not a known role word."""
+    if local in _ROLE_LOCALS or local in _NEVER_LOCALS:
+        return False
+    core = re.sub(r"[._\-]", "", local)
+    return core.isalpha() and 2 <= len(core) <= 24
+
+
 def _pick_email(mailtos: list[str], texts: list[str], host: str,
                 name_hint: str = "") -> str:
     """Choose the best TRUSTWORTHY contact email, or '' if none can be trusted to
@@ -195,7 +224,7 @@ def _pick_email(mailtos: list[str], texts: list[str], host: str,
     for src, is_mailto in ((mailtos, True), (texts, False)):
         for c in (src or []):
             c = (c or "").strip().strip(".").lower()
-            if not c or c in seen:
+            if not c or c in seen or c.split("@")[0] in _NEVER_LOCALS:
                 continue
             seen.add(c)
             if is_trustworthy_email(c, host, from_mailto=is_mailto, name_hint=name_hint):
@@ -203,15 +232,23 @@ def _pick_email(mailtos: list[str], texts: list[str], host: str,
     if not trusted:
         return ""
     own = [e for e in trusted if registrable_domain(e.split("@")[-1]) == site]
-    # 1) a role account on the business's OWN domain (info@, owner@, ...)
+    # 1) a PERSON on the business's own domain — the decision-maker's inbox
+    for e in own:
+        if _looks_personal(e.split("@")[0]):
+            return e
+    # 2) a role account on the business's OWN domain (owner@, info@, ...)
     for pref in _ROLE_PREFERENCE:
         for e in own:
             if e.split("@")[0] == pref:
                 return e
-    # 2) any address on the business's own domain
+    # 3) any other address on the business's own domain
     if own:
         return own[0]
-    # 3) otherwise a trusted address (mailto ones are already ordered first)
+    # 4) otherwise a trusted address (mailto ones are already ordered first),
+    #    person-looking first for the same reason as (1)
+    for e in trusted:
+        if _looks_personal(e.split("@")[0]):
+            return e
     for pref in _ROLE_PREFERENCE:
         for e in trusted:
             if e.split("@")[0] == pref:

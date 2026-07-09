@@ -197,29 +197,37 @@ def generate_website_suite(
               "and I won't email again.\n[Mailing address]")
 
     # ── Subject: specific, honest, no fake Re: ───────────────────────────────
+    # Every variant carries the company name: a batch of 40 then has 40 distinct
+    # subject strings. Generic repeats ("your google reviews" ×8 in one Drafts
+    # screen, 2026-07-09) are a bulk-template fingerprint for Gmail's filters
+    # AND read like a blast to the recipient — specific beats generic on both.
     codes = {f["code"] for f in signals.get("findings", [])}
     if {"no_domain", "social_only", "unreachable"} & codes:
         subject_pool = [
             f"{company_name}'s website",
             f"couldn't find {company_name} online",
             f"quick note for {company_name}",
+            f"looking for {company_name}'s site",
         ]
     elif "trust_gap" in codes:
         subject_pool = [
-            "your google reviews",
+            f"{company_name}'s Google reviews aren't on your site",
             f"{company_name}'s reviews",
-            "your reviews + your website",
+            f"your Google rating vs {company_name}'s website",
+            f"the reviews missing from {company_name}'s site",
         ]
     elif "no_mobile" in codes:
         subject_pool = [
-            f"{company_name} on mobile",
-            f"your site + phones",
+            f"{company_name} on a phone",
+            f"{company_name}'s site on mobile",
+            f"pulled up {company_name} on my phone",
             f"quick note on {company_name}'s website",
         ]
     else:
         subject_pool = [
             f"quick note on {company_name}'s website",
-            f"noticed something on your site",
+            f"noticed something on {company_name}'s site",
+            f"a couple things on {company_name}'s website",
             f"{company_name}'s website",
         ]
     subject = _variant(seed + "subj", subject_pool)
