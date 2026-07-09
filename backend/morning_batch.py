@@ -74,8 +74,11 @@ def _reply_likelihood(signals: dict, email: str, category: str, t: dict | None =
         score += 12          # thriving business, neglected site — the sweet spot
         if reviews >= 50:
             score += 6
-    elif reviews == 0 and not t.get("domain"):
-        score -= 5           # no site AND no reviews: may not be a real buyer yet
+    elif rating >= 4.5:
+        score += 6           # fast-mode Maps rarely carries the count; a strong
+                             # rating alone still signals a real, liked business
+    elif rating == 0 and not t.get("domain"):
+        score -= 5           # no site AND no rating: may not be a real buyer yet
     if signals.get("marketing_pixels"):
         score += 8
     if not email and t.get("phone"):

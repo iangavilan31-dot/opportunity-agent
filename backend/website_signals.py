@@ -232,16 +232,22 @@ def apply_trust_gap(signals: dict, rating, review_count) -> None:
         review_count = int(float(review_count or 0))
     except (TypeError, ValueError):
         return
-    if review_count < 20 or rating < 4.0:
-        return
     if not signals.get("reachable") or signals.get("social_only"):
         return
     if signals.get("reviews_onsite") or "reviews_onsite" not in signals:
         return
     if any(f.get("code") == "trust_gap" for f in signals.get("findings", [])):
         return
-    msg = (f"has {review_count} Google reviews at {rating:.1f} stars, "
-           f"but the site doesn't show a single one")
+    # Fast-mode Maps data reliably has the RATING but usually not the count —
+    # never state a number we don't have. Both message forms are verifiable.
+    if review_count >= 20 and rating >= 4.0:
+        msg = (f"has {review_count} Google reviews at {rating:.1f} stars, "
+               f"but the site doesn't show a single one")
+    elif rating >= 4.5:
+        msg = (f"shows a {rating:.1f}-star rating on Google, "
+               f"but the site doesn't show any of your reviews")
+    else:
+        return
     signals["findings"].insert(0, {"sev": "high", "code": "trust_gap", "msg": msg})
     signals["headline_issues"] = [msg] + list(signals.get("headline_issues", []))[:2]
     signals["opportunity_score"] = min(100, int(signals.get("opportunity_score", 0)) + 10)
