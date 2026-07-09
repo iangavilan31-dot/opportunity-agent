@@ -110,6 +110,37 @@ def create_draft(to: str, subject: str, body: str, from_name: str = "") -> str |
         return None
 
 
+def update_draft(draft_id: str, to: str, subject: str, body: str) -> bool:
+    """Replace an existing draft's message in place (same draft id)."""
+    svc = _get_service()
+    if svc is None:
+        return False
+    try:
+        msg = MIMEText(body or "", _charset="utf-8")
+        if to:
+            msg["To"] = to
+        msg["Subject"] = subject or ""
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        svc.users().drafts().update(
+            userId="me", id=draft_id, body={"message": {"raw": raw}}).execute()
+        return True
+    except Exception as e:
+        print(f"[gmail_drafts] update_draft {draft_id} failed: {e}")
+        return False
+
+
+def delete_draft(draft_id: str) -> bool:
+    svc = _get_service()
+    if svc is None:
+        return False
+    try:
+        svc.users().drafts().delete(userId="me", id=draft_id).execute()
+        return True
+    except Exception as e:
+        print(f"[gmail_drafts] delete_draft {draft_id} failed: {e}")
+        return False
+
+
 def list_draft_ids() -> set[str] | None:
     """All current draft ids in the account (None = not configured / API failure).
     Used to detect sends: a draft that vanished from Drafts was sent (or deleted)."""

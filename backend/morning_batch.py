@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 import config
 from db import Lead, PipelineRun, SessionLocal, init_db
-from settings_store import apply_signature, load_settings
+from settings_store import apply_signature, load_settings, web_profile
 import web_targets
 import website_signals
 import web_offer
@@ -161,7 +161,7 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
         gmail_on = getattr(config, "GMAIL_ENABLED", True) and gmail_drafts.is_configured()
         _log(run_log, "Gmail drafts: ON (real drafts in your inbox)" if gmail_on
              else "Gmail drafts: off (queueing with one-click compose links)")
-        settings = load_settings()
+        settings = web_profile(load_settings())
 
         # ── Phase 2: write copy, create Gmail draft, persist ─────────────────
         for c in selected:

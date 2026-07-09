@@ -26,7 +26,7 @@ from datetime import datetime, timedelta, timezone
 import config
 import gmail_drafts
 from db import Lead
-from settings_store import apply_signature
+from settings_store import apply_signature, web_profile
 
 _ACTIVE_STATUSES = ("queued", "approved", "sent")
 
@@ -102,7 +102,7 @@ def process(db, log=print) -> dict:
             did = gmail_drafts.create_draft(
                 to=lead.contact_email,
                 subject=f"re: {lead.subject_line}",
-                body=apply_signature(lead.follow_up_1))
+                body=apply_signature(lead.follow_up_1, web_profile()))
             if did:
                 lead.notes = f"{notes} fu1_draft:{did}".strip()
                 fu1_drafted += 1
@@ -114,7 +114,7 @@ def process(db, log=print) -> dict:
             did = gmail_drafts.create_draft(
                 to=lead.contact_email,
                 subject=f"re: {lead.subject_line}",
-                body=apply_signature(lead.follow_up_2))
+                body=apply_signature(lead.follow_up_2, web_profile()))
             if did:
                 lead.notes = f"{lead.notes} fu2_draft:{did}".strip()
                 fu2_drafted += 1

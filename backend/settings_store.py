@@ -76,5 +76,15 @@ def apply_signature(text: str | None, settings: dict | None = None) -> str:
     return out
 
 
+def web_profile(settings: dict | None = None) -> dict:
+    """Settings for WEBSITE-track emails: the global positioning line was written
+    for the automation track ("I automate back-office workflows...") and reads
+    wrong under a web-design pitch — the email body already says 'I run Gavika,
+    a small studio'. Signature = name + calendar link only."""
+    s = dict(settings or load_settings())
+    s["positioning"] = ""
+    return s
+
+
 def is_configured() -> bool:
     return bool(load_settings().get("sender_name", "").strip())

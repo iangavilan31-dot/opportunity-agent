@@ -117,12 +117,12 @@ def _pick_email(candidates: list[str], host: str) -> str:
     return seen[0]
 
 
-def _fetch(url: str, timeout: float = 12.0) -> tuple[httpx.Response | None, float, str]:
+def _fetch(url: str, timeout: float = 12.0, verify: bool = True) -> tuple[httpx.Response | None, float, str]:
     """GET a URL. Returns (response|None, elapsed_ms, error)."""
     start = time.perf_counter()
     try:
         with httpx.Client(follow_redirects=True, timeout=timeout,
-                          headers={"User-Agent": _UA}, verify=True) as client:
+                          headers={"User-Agent": _UA}, verify=verify) as client:
             resp = client.get(url)
         return resp, (time.perf_counter() - start) * 1000.0, ""
     except httpx.ConnectError as e:
@@ -201,21 +201,37 @@ def analyze(domain: str) -> dict:
         res["contact_email"] = ""
         return res
 
-    # Try HTTPS first, then plain HTTP.
+    # Try HTTPS first, then plain HTTP. The "Not Secure" claim goes into a real
+    # email, so it must be DETERMINISTIC — a transient timeout once produced a
+    # false "Not Secure" line about a perfectly fine site (2026-07-08). Hence:
+    # retry https once, and before ever claiming no-HTTPS, confirm the server
+    # truly doesn't speak TLS (verify=False probe separates cert quirks — which
+    # browsers often tolerate via AIA chain fetching — from actual no-HTTPS).
+    cert_note = ""
     resp, load_ms, err = _fetch(f"https://{host}")
+    if resp is None:
+        resp, load_ms, err = _fetch(f"https://{host}")  # retry: transients lie
     https_ok = resp is not None and resp.status_code < 500
     if not https_ok:
-        resp2, load_ms2, err2 = _fetch(f"http://{host}")
-        if resp2 is not None and resp2.status_code < 500:
-            resp, load_ms, err = resp2, load_ms2, err2
-            https_ok = False  # reachable, but NOT over https
+        resp_nv, load_nv, _err_nv = _fetch(f"https://{host}", verify=False)
+        if resp_nv is not None and resp_nv.status_code < 500:
+            # HTTPS is served; only Python's cert validation failed. Chrome
+            # likely shows this site as secure — never claim "Not Secure".
+            resp, load_ms = resp_nv, load_nv
+            https_ok = True
+            cert_note = err
         else:
-            # Totally unreachable.
-            res["findings"].append({"sev": "high", "code": "unreachable",
-                                    "msg": "website didn't load (may be down or gone)"})
-            res["headline_issues"] = ["your website didn't load when I checked"]
-            res["opportunity_score"] = 88
-            return res
+            resp2, load_ms2, err2 = _fetch(f"http://{host}")
+            if resp2 is not None and resp2.status_code < 500:
+                resp, load_ms, err = resp2, load_ms2, err2
+                https_ok = False  # confirmed: reachable, but NOT over https
+            else:
+                # Totally unreachable.
+                res["findings"].append({"sev": "high", "code": "unreachable",
+                                        "msg": "website didn't load (may be down or gone)"})
+                res["headline_issues"] = ["your website didn't load when I checked"]
+                res["opportunity_score"] = 88
+                return res
     else:
         https_ok = str(resp.url).startswith("https://")
 
@@ -298,6 +314,9 @@ def analyze(domain: str) -> dict:
         score += 30
         strong_outdated = True
         add("high", "not_secure", "shows 'Not Secure' in the browser (no HTTPS)")
+    elif cert_note:
+        # True but browser-invisible in most cases — low sev, never a headline.
+        add("low", "cert", "its TLS certificate didn't validate cleanly when I checked")
 
     # ── Mobile viewport ─────────────────────────────────────────────────────
     has_viewport = 'name="viewport"' in low or "name='viewport'" in low
