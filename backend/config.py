@@ -89,9 +89,15 @@ SOURCING_REQUIRE_WEBSITE = os.getenv("SOURCING_REQUIRE_WEBSITE", "false").lower(
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 VISION_ENABLED = os.getenv("VISION_ENABLED", "true").lower() == "true"
 VISION_MODEL = os.getenv("VISION_MODEL", "gpt-4o-mini")
-# The gate drops sites that look modern, so screenshot+judge a bigger pool than
-# the daily draft target to refill with genuinely-bad-looking prospects.
+# The gate DOWNRANKS sites that look modern (it no longer drops them — Ian would
+# still email a decent-looking business, just at low priority), so screenshot+judge
+# a bigger pool than the daily draft target to fill the top with genuinely-bad
+# prospects first and let modern ones sink below.
 VISION_GATE_POOL = int(os.getenv("VISION_GATE_POOL", "90"))
+# Reply-likelihood penalty applied to a 'modern' visual verdict. Large by default
+# so every modern-looking site ranks below every dated one — they get drafted only
+# when there aren't enough genuinely-dated prospects to hit the daily target.
+VISION_MODERN_PENALTY = float(os.getenv("VISION_MODERN_PENALTY", "1000"))
 
 # ── Screenshot pipeline (visual grading) ─────────────────────────────────────
 # After ranking, capture mobile+desktop screenshots of the selected leads into

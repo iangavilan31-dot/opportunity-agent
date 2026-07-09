@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 
 import config
 import gmail_drafts
+import verify_email
 import web_offer
 import website_signals
 from db import Lead, SessionLocal, init_db
@@ -35,6 +36,13 @@ def run() -> dict:
     settings = web_profile(load_settings())
     min_opp = getattr(config, "AUTOPILOT_MIN_OPPORTUNITY", 45)
     updated = rejected = unchanged = errors = 0
+    email_fixed = email_blanked = 0
+
+    # Tell Ian up front whether real mailbox verification is live. If it's dry we
+    # fall back to MX-only, which is exactly what let a non-existent mailbox
+    # (info@nunezheatingandcooling.com) slip through and bounce.
+    vs = verify_email.verifier_status()
+    print(f"Mailbox verification: {vs['message']}")
     try:
         leads = (db.query(Lead)
                    .filter(Lead.source == "website_autopilot",
@@ -45,7 +53,8 @@ def run() -> dict:
         print(f"Re-auditing {len(leads)} unsent website drafts...")
         for lead in leads:
             try:
-                signals = website_signals.analyze(lead.company_domain)
+                signals = website_signals.analyze(lead.company_domain,
+                                                  name_hint=lead.company_name or "")
                 # Re-apply the trust-gap check using the Maps data captured at
                 # sourcing time (stored in the old score_breakdown).
                 try:
@@ -112,7 +121,49 @@ def run() -> dict:
             lead.objection_responses = json.dumps(suite["objection_responses"])
             lead.updated_at = datetime.now(timezone.utc)
 
-            if draft_id and lead.contact_email:
+            # ── Re-verify the TO address with the hardened picker ────────────
+            # The bounce that started this (eben@eyebytes.com — a web dev's
+            # address off a law firm's footer) got in because the old picker fell
+            # back to "first email seen". Re-check the stored address: if it's a
+            # third-party/vendor domain, swap in the freshly re-scraped one (now
+            # own-domain/free-provider only) or blank it. CSV-provided addresses
+            # are human-chosen — never override those. Then MX/MillionVerifier
+            # verify whatever remains; invalid -> blank. A draft with no
+            # trustworthy TO is deleted (a wrong send is worse than no send).
+            prev_email = (lead.contact_email or "").strip().lower()
+            new_email = prev_email
+            if lead.contact_source != "csv" and new_email:
+                if not website_signals.is_trustworthy_email(
+                        new_email, lead.company_domain, name_hint=lead.company_name or ""):
+                    fresh = (signals.get("contact_email") or "").strip().lower()
+                    print(f"  ~ {lead.company_name}: untrusted TO {new_email!r} -> "
+                          f"{fresh or '(none found)'}")
+                    new_email = fresh
+                    email_fixed += 1
+            level = ""
+            if new_email:
+                v = verify_email.verify(new_email)
+                level = v["level"]
+                if not v["ok"]:
+                    print(f"  ~ {lead.company_name}: {new_email} failed verify "
+                          f"({v['method']}) -> blanked")
+                    new_email = ""
+                    level = ""
+            if new_email != prev_email:
+                lead.contact_email = new_email
+                lead.contact_verified = level or ("unverified" if new_email else "")
+                lead.verification_score = {"valid": 90, "risky": 55}.get(level, 0)
+                lead.sendability = "review" if new_email else "blocked"
+                if not new_email:
+                    email_blanked += 1
+
+            if not lead.contact_email:
+                # No trustworthy address left — a cold draft can't go out. Pull it.
+                if draft_id:
+                    gmail_drafts.delete_draft(draft_id)
+                    lead.notes = None
+                tag = "no email -> draft removed"
+            elif draft_id:
                 ok = gmail_drafts.update_draft(
                     draft_id, to=lead.contact_email, subject=suite["subject_line"],
                     body=apply_signature(suite["email_body"], settings))
@@ -129,7 +180,9 @@ def run() -> dict:
     finally:
         db.close()
     summary = {"updated": updated, "unchanged": unchanged,
-               "rejected": rejected, "errors": errors}
+               "rejected": rejected, "errors": errors,
+               "email_fixed": email_fixed, "email_blanked": email_blanked,
+               "verifier": vs["message"]}
     print(summary)
     return summary
 

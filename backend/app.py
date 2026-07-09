@@ -1,10 +1,11 @@
+import os
 import json
 import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -28,6 +29,73 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     init_db()
+
+
+# ─── Business HUD ─────────────────────────────────────────────────────────────
+# A simple, non-AI-feel dashboard (red + white chunky type) that reads the live
+# /api/stats + /api/analytics. Served here so it's same-origin with the API.
+_HUD_PATH = os.path.join(os.path.dirname(__file__), "hud.html")
+
+
+@app.get("/hud")
+def hud():
+    if not os.path.exists(_HUD_PATH):
+        raise HTTPException(status_code=404, detail="hud.html not found")
+    return FileResponse(_HUD_PATH, media_type="text/html")
+
+
+# ─── Gmail live sync (real sent + reply detection) ────────────────────────────
+@app.get("/api/gmail/status")
+def gmail_status():
+    """Which Gmail connections exist (compose / read) so the HUD can prompt the
+    one-time read-access grant when it's missing."""
+    import gmail_sync
+    return gmail_sync.status()
+
+
+@app.post("/api/gmail/sync")
+def gmail_sync_now(db: Session = Depends(get_db)):
+    """Reconcile lead statuses with Gmail: mark sent (draft vanished) + mark
+    replied (inbound message from the prospect). Read detection is skipped
+    cleanly if read access hasn't been granted."""
+    import gmail_sync
+    return gmail_sync.reconcile(db)
+
+
+@app.get("/api/hud")
+def hud_data(db: Session = Depends(get_db)):
+    """REAL numbers only for the Revenue Universe — the actual Gavika web-machine
+    leads (source=website_autopilot), NOT the leftover mock/demo automation-track
+    leads, and NO projected pipeline dollars. The only money shown is money
+    actually earned (deals marked closed/won). Everything else is honest counts."""
+    leads = db.query(Lead).filter(Lead.source == "website_autopilot").all()
+
+    def c(*st):
+        return sum(1 for l in leads if l.status in st)
+
+    cur = {"queued": c("queued"), "approved": c("approved"), "sent": c("sent"),
+           "replied": c("replied"), "meeting": c("meeting"), "won": c("closed", "won")}
+    # status is terminal, so downstream stages roll up for the funnel/milestone
+    cum = {"sent": cur["sent"] + cur["replied"] + cur["meeting"] + cur["won"],
+           "replied": cur["replied"] + cur["meeting"] + cur["won"],
+           "meeting": cur["meeting"] + cur["won"], "won": cur["won"]}
+
+    # Real earned = contracted value of deals actually closed. $0 until Ian wins
+    # one — and it only ever reflects real closes, never projection.
+    earned = 0
+    for l in leads:
+        if l.status in ("closed", "won"):
+            try:
+                earned += int(json.loads(l.offer or "{}").get("setup") or 0)
+            except Exception:
+                pass
+
+    replies = [{"company_name": l.company_name, "contact_email": l.contact_email}
+               for l in leads if l.status in ("replied", "meeting", "closed", "won")]
+    active = [l for l in leads if l.status != "rejected"]
+    return {"stages": cur, "cumulative": cum, "earned": earned,
+            "leads": len(active), "drafts_ready": cur["queued"] + cur["approved"],
+            "replies": replies}
 
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ drops straight into the existing Lead columns, Queue/Send UI, and analytics.
 from __future__ import annotations
 
 import re
+from urllib.parse import quote_plus
 
 import config
 from email_templates import _variant, _first_name, _article
@@ -178,12 +179,15 @@ def generate_website_suite(
     # No links in email 1 — links in cold first-touches raise spam classification,
     # and the mockup-on-reply flow delivers the proof anyway. The portfolio URL
     # lives in the on-reply materials (long version, mini-audit, "send me info").
+    # The ?b= parameter is the hook: the site reads it and spells THIS
+    # business's name in the hero particles — every link is already theirs.
+    plink = f"{portfolio}/?b={quote_plus(company_name)}" if portfolio else ""
     proof = ""
     if portfolio:
         proof = _variant(seed + "proof", [
-            f" Here's recent work: {portfolio}.",
-            f" You can see my work here: {portfolio}.",
-            f" A few of my recent sites: {portfolio}.",
+            f" Here's my work — open it, your name's already on it: {plink}",
+            f" See what I build (I put {company_name}'s name up on it): {plink}",
+            f" My site's here — you'll notice it already knows who you are: {plink}",
         ])
     meet = " — or a quick 10-min Google Meet if that's easier" if offer_meet else ""
     # CAN-SPAM footer on every cold touch: working opt-out + physical postal
@@ -262,8 +266,8 @@ I'd rather show than tell: I can put together a quick mockup of a new homepage f
         f"Builds start at ${offer['setup']:,} (most owners pick the "
         f"${getattr(config, 'WEB_TIER2_PRICE', 2400):,} version with online booking and review "
         f"collection), + ${offer['monthly']}/mo for hosting, security, and small changes."
-        + (f" Recent work: {portfolio}." if portfolio else "")
-        + f" Happy to send a free homepage mockup first so you can see it before deciding{meet}."
+        + (f"\nRecent work — open it, your name's already on it: {plink}" if portfolio else "")
+        + f"\nHappy to send a free homepage mockup first so you can see it before deciding{meet}."
     )
     mini_audit = "\n".join(audit_lines)
 

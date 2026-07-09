@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Web Machine</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%230b0b0d'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23e9b872'/%3E%3Ccircle cx='50' cy='50' r='26' fill='none' stroke='%23e9b872' stroke-opacity='0.5' stroke-width='2'/%3E%3C/svg%3E" />
+<style>
+  :root{
+    --bg:#0a0a0b; --bg2:#0e0e10; --line:#1c1c20;
+    --text:#f5f5f6; --muted:#8b8b93; --dim:#54545c;
+    --gold:#e9b872; --gold-hi:#ffd08a;
+    --sans:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);
+    overflow:hidden;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  #stage{position:fixed;inset:0}
+  #universe{position:fixed;inset:0;display:block;width:100%;height:100%}
+  /* subtle vignette so the universe sits in a room, not a void */
+  #vignette{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 42%,transparent 40%,rgba(0,0,0,.55) 100%)}
+  .ui{position:fixed;inset:0;pointer-events:none}
+  .ui > *{pointer-events:auto}
+
+  /* ── icon rail ─────────────────────────────────────────── */
+  .rail{position:fixed;left:0;top:0;bottom:0;width:60px;display:flex;flex-direction:column;
+    align-items:center;gap:4px;padding:18px 0;z-index:6}
+  .rail .logo{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--gold);
+    position:relative;margin-bottom:18px;flex:none}
+  .rail .logo::after{content:"";position:absolute;inset:0;margin:auto;width:7px;height:7px;
+    border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold)}
+  .rail a{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    color:var(--dim);transition:color .2s,background .2s;text-decoration:none}
+  .rail a:hover{color:var(--text);background:#141418}
+  .rail a svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.6;fill:none;
+    stroke-linecap:round;stroke-linejoin:round}
+  .rail .sp{flex:1}
+  .rail .me{width:28px;height:28px;border-radius:50%;background:#1a1a1f;color:var(--muted);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+
+  /* ── top status ────────────────────────────────────────── */
+  .top{position:fixed;top:22px;left:84px;right:26px;display:flex;align-items:center;gap:14px;z-index:6}
+  .word{font-size:13px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:var(--muted)}
+  .word b{color:var(--text)}
+  .top .sp{flex:1}
+  .chip{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:600;color:var(--muted);
+    letter-spacing:.04em}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 0 0 rgba(233,184,114,.6);animation:pulse 2.4s infinite}
+  .chip.off .dot{background:var(--dim);animation:none}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(233,184,114,.5)}70%{box-shadow:0 0 0 7px rgba(233,184,114,0)}100%{box-shadow:0 0 0 0 rgba(233,184,114,0)}}
+  .sync{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);
+    font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text);
+    background:#141418;border:1px solid var(--line);border-radius:9px;padding:8px 13px;cursor:pointer;
+    transition:border-color .2s,background .2s}
+  .sync:hover{border-color:var(--gold);background:#17140f}
+  .sync:disabled{opacity:.5;cursor:default}
+  .sync svg{width:13px;height:13px;stroke:var(--gold);stroke-width:2;fill:none}
+
+  /* ── the monumental readout ────────────────────────────── */
+  .read{position:fixed;left:84px;bottom:40px;z-index:6;max-width:min(46vw,560px)}
+  .read .ey{font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);
+    display:flex;align-items:center;gap:10px;margin-bottom:10px;transition:color .3s}
+  .read .ey .swatch{width:9px;height:9px;border-radius:50%;background:var(--gold);opacity:0;transition:opacity .3s}
+  .read.focus .ey .swatch{opacity:1}
+  .read .big{font-size:clamp(52px,8.2vw,116px);font-weight:800;line-height:.86;letter-spacing:-.035em;
+    font-variant-numeric:tabular-nums;color:var(--text);transition:color .3s}
+  .read.focus .big{color:var(--gold-hi)}
+  .read .sub{margin-top:16px;font-size:14px;font-weight:500;color:var(--muted);letter-spacing:.01em;
+    max-width:38ch;line-height:1.5;min-height:21px}
+
+  /* stage ledger — supporting, small, right side */
+  .ledger{position:fixed;right:26px;bottom:40px;z-index:6;display:flex;flex-direction:column;gap:2px;
+    text-align:right}
+  .ledger .row{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:16px;
+    padding:7px 0;cursor:pointer;opacity:.65;transition:opacity .2s}
+  .ledger .row:hover,.ledger .row.on{opacity:1}
+  .ledger .row .nm{font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .ledger .row.on .nm{color:var(--gold)}
+  .ledger .row .ct{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--text);min-width:2ch}
+
+  /* floating cluster labels over the canvas */
+  #labels{position:fixed;inset:0;z-index:4;pointer-events:none}
+  .lab{position:absolute;transform:translate(-50%,-50%);font-size:10.5px;font-weight:700;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--muted);white-space:nowrap;
+    text-shadow:0 1px 8px #000;transition:opacity .3s,color .3s;opacity:.5}
+  .lab.on{color:var(--gold);opacity:1}
+  .lab i{font-style:normal;color:var(--dim);margin-left:7px;font-weight:700}
+  .lab.on i{color:var(--gold-hi)}
+
+  /* connection / replies — bottom center, minimal */
+  .conn{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:6;
+    font-size:11.5px;font-weight:500;color:var(--dim);display:flex;align-items:center;gap:9px;
+    max-width:60vw;text-align:center}
+  .conn code{background:#141418;border:1px solid var(--line);padding:2px 7px;border-radius:5px;
+    color:var(--gold);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}
+  .conn.warn{color:var(--muted)}
+  .toast{position:fixed;left:50%;bottom:56px;transform:translateX(-50%);z-index:7;
+    font-size:12px;font-weight:600;color:var(--gold-hi);opacity:0;transition:opacity .4s;pointer-events:none}
+  .toast.show{opacity:1}
+
+  .replies{position:fixed;right:26px;top:74px;z-index:6;width:280px;max-height:44vh;overflow:auto;
+    display:none;flex-direction:column;gap:2px}
+  .replies.show{display:flex}
+  .replies h4{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);
+    margin-bottom:8px;text-align:right}
+  .replies .r{display:flex;flex-direction:column;gap:2px;padding:9px 0;border-top:1px solid var(--line);text-align:right}
+  .replies .r .c{font-size:13px;font-weight:700;color:var(--text)}
+  .replies .r .e{font-size:11px;color:var(--muted)}
+
+  .fallback{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:var(--dim);
+    font-size:13px;z-index:2}
+  @media(max-width:760px){
+    .read .big{font-size:clamp(44px,15vw,80px)}
+    .ledger,.replies{display:none}
+    .read{max-width:82vw}
+  }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="universe"></canvas>
+    <div id="vignette"></div>
+    <div id="labels"></div>
+    <div class="fallback" id="fallback">Revenue Universe needs WebGL — the data readout is still live below.</div>
+  </div>
+
+  <div class="ui">
+    <nav class="rail">
+      <div class="logo"></div>
+      <a href="http://localhost:5120/" target="_blank" title="Dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg></a>
+      <a href="http://localhost:5120/queue" target="_blank" title="Queue"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h12"/></svg></a>
+      <a href="http://localhost:5120/send" target="_blank" title="Send"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></a>
+      <a href="http://localhost:5120/analytics" target="_blank" title="Analytics"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></a>
+      <div class="sp"></div>
+      <a href="http://localhost:5120/settings" target="_blank" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></a>
+      <div class="me">IG</div>
+    </nav>
+
+    <div class="top">
+      <div class="word">WEB&nbsp;<b>MACHINE</b></div>
+      <div class="sp"></div>
+      <div class="chip" id="live"><span class="dot"></span><span id="livetext">Connecting…</span></div>
+      <button class="sync" id="syncbtn" type="button">
+        <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        Sync
+      </button>
+    </div>
+
+    <div class="read" id="read">
+      <div class="ey" id="eyebrow"><span class="swatch"></span><span id="eyetext">Pipeline potential</span></div>
+      <div class="big" id="bignum">$0</div>
+      <div class="sub" id="subtext">Every point is a real lead. Hover a cluster to focus the universe.</div>
+    </div>
+
+    <div class="ledger" id="ledger"></div>
+
+    <div class="replies" id="replies"><h4>Replies</h4><div id="replylist"></div></div>
+
+    <div class="toast" id="toast"></div>
+    <div class="conn" id="conn"></div>
+  </div>
+
+<script>
+"use strict";
+var API = (location.protocol === "file:") ? "http://localhost:8010" : "";
+
+/* ── stages: the funnel, converging inward to WON ──────────────────────────── */
+var STAGES = [
+  {key:"queued",   name:"Queued",   accent:0.10},
+  {key:"approved", name:"Approved", accent:0.28},
+  {key:"sent",     name:"Sent",     accent:0.48},
+  {key:"replied",  name:"Replied",  accent:0.72},
+  {key:"meeting",  name:"Meeting",  accent:0.90},
+  {key:"won",      name:"Won",      accent:1.00}
+];
+// funnel spiral: later stages spiral inward + up toward the bright WON core
+var CENTROIDS = STAGES.map(function(s,i){
+  var a = i*0.92 + 0.4, r = 6.4 - i*1.05, y = (i-2.4)*0.62;
+  return [Math.cos(a)*r, y, Math.sin(a)*r];
+});
+
+/* ── numbers ──────────────────────────────────────────────────────────────── */
+function money(n){ n=Math.round(Number(n)||0);
+  if(n>=1e6) return "$"+(n/1e6).toFixed(n>=1e7?0:1).replace(/\.0$/,"")+"M";
+  if(n>=1e3) return "$"+(n/1e3).toFixed(n>=1e5?0:1).replace(/\.0$/,"")+"k";
+  return "$"+n.toLocaleString(); }
+function moneyFull(n){ return "$"+Math.round(Number(n)||0).toLocaleString(); }
+function el(id){ return document.getElementById(id); }
+
+/* ── state ────────────────────────────────────────────────────────────────── */
+var STATE = { counts:[0,0,0,0,0,0], cum:{sent:0,replied:0,meeting:0,won:0},
+  earned:0, leads:0, focus:-1, replies:[] };
+
+/* ══════════════════════════════════════════════════════════════════════════
+   WEBGL — one particle field, one draw call. Each lead is a bright core node
+   sitting in its stage cloud; ambient dust gives the clusters atmosphere.
+   ══════════════════════════════════════════════════════════════════════════ */
+var gl, prog, buffers={}, N=0, raf=0, t0=performance.now();
+var cam = { az:0.5, el:0.16, r:19, azT:0.5, elT:0.16, rT:19, cx:0,cy:0,cz:0, cxT:0,cyT:0,czT:0 };
+var pulses = [0,0,0,0,0,0];
+
+var VERT = [
+"attribute vec3 aPos; attribute vec3 aCen; attribute float aStage;",
+"attribute float aRand; attribute float aCore; attribute float aVal;",
+"uniform mat4 uVP; uniform float uTime; uniform float uFocus; uniform float uFocusMix;",
+"uniform float uPulse[6]; uniform float uDpr;",
+"varying float vA; varying float vStage; varying float vVal; varying float vCore; varying float vPulse;",
+"void main(){",
+"  vec3 p = aPos;",
+"  float drift = 0.14;",
+"  p += drift*vec3(sin(uTime*0.30+aRand*6.28), cos(uTime*0.26+aRand*4.10), sin(uTime*0.34+aRand*2.30));",
+"  int si = int(aStage+0.5);",
+"  float pl = uPulse[si];",
+"  vPulse = pl;",
+"  vec3 outw = normalize(aPos-aCen+0.0001);",
+"  p += outw*pl*1.7*(0.4+aRand);",
+"  vec4 mv = uVP*vec4(p,1.0);",
+"  gl_Position = mv;",
+"  float focused = 1.0-uFocusMix*step(0.5, abs(aStage-uFocus));",  // 1 if focused stage (or no focus), dim else
+"  float base = mix(1.6, 4.6, aCore) + pl*3.0;",
+"  gl_PointSize = base*uDpr*(9.0/max(mv.w,0.4));",
+"  vA = (mix(0.22,0.95,aCore)) * focused;",
+"  vStage = aStage; vVal = aVal; vCore = aCore;",
+"}"
+].join("\n");
+
+var FRAG = [
+"precision mediump float;",
+"varying float vA; varying float vStage; varying float vVal; varying float vCore; varying float vPulse;",
+"vec3 coolCol = vec3(0.72,0.78,0.90);",   // early stages: cool white
+"vec3 goldCol = vec3(0.945,0.760,0.470);", // money / progress
+"vec3 goldHi  = vec3(1.0,0.86,0.60);",
+"void main(){",
+"  vec2 d = gl_PointCoord-0.5; float r = length(d);",
+"  if(r>0.5) discard;",
+"  float a = smoothstep(0.5,0.02,r)*vA;",
+"  float prog = clamp(vStage/5.0,0.0,1.0);",
+"  vec3 col = mix(coolCol, goldCol, prog*0.85+vVal*0.15);",
+"  col = mix(col, goldHi, vPulse*0.8);",
+"  col += vCore*0.15;",
+"  gl_FragColor = vec4(col, a);",
+"}"
+].join("\n");
+
+function sh(type,src){ var s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ console.error(gl.getShaderInfoLog(s)); } return s; }
+
+function initGL(){
+  var cv = el("universe");
+  gl = cv.getContext("webgl",{antialias:true,alpha:false,premultipliedAlpha:false})
+     || cv.getContext("experimental-webgl");
+  if(!gl){ el("fallback").style.display="flex"; return false; }
+  prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER,VERT));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER,FRAG));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog,gl.LINK_STATUS)){ console.error(gl.getProgramInfoLog(prog)); return false; }
+  gl.useProgram(prog);
+  gl.disable(gl.DEPTH_TEST);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);  // additive glow
+  resize();
+  return true;
+}
+
+function resize(){
+  if(!gl) return;
+  var dpr = Math.min(window.devicePixelRatio||1, 2);
+  var cv = gl.canvas;
+  cv.width = Math.floor(innerWidth*dpr); cv.height = Math.floor(innerHeight*dpr);
+  gl.viewport(0,0,cv.width,cv.height);
+}
+window.addEventListener("resize", resize);
+
+/* build the particle buffers from live counts */
+function buildParticles(){
+  var pos=[], cen=[], stg=[], rnd=[], core=[], val=[];
+  for(var s=0;s<6;s++){
+    var c = CENTROIDS[s];
+    var count = STATE.counts[s]|0;
+    var prog = s/5;  // color nudge by funnel progress only (no fake $ weighting)
+    // radius of the cloud grows a little with population
+    var spread = 0.7 + Math.min(count,80)*0.02;
+    // 1 bright core per REAL lead
+    for(var i=0;i<count;i++){
+      var pp = gauss(c, spread);
+      pos.push(pp[0],pp[1],pp[2]); cen.push(c[0],c[1],c[2]);
+      stg.push(s); rnd.push(Math.random()); core.push(1); val.push(prog);
+    }
+    // a little ambient dust so a cluster's location reads even when sparse,
+    // density scaled ONLY by its real lead count (never by projected money)
+    var dust = Math.min(40 + count*12, 420)|0;
+    for(var j=0;j<dust;j++){
+      var dp = gauss(c, spread*1.7);
+      pos.push(dp[0],dp[1],dp[2]); cen.push(c[0],c[1],c[2]);
+      stg.push(s); rnd.push(Math.random()); core.push(0); val.push(prog);
+    }
+  }
+  N = stg.length;
+  mkBuf("aPos", pos,3); mkBuf("aCen", cen,3); mkBuf("aStage", stg,1);
+  mkBuf("aRand", rnd,1); mkBuf("aCore", core,1); mkBuf("aVal", val,1);
+}
+function gauss(c, sd){
+  function g(){ return (Math.random()+Math.random()+Math.random()-1.5)*sd; }
+  return [c[0]+g()*1.6, c[1]+g(), c[2]+g()*1.6];
+}
+function mkBuf(name, arr, size){
+  if(!gl) return;
+  var b = buffers[name] || (buffers[name]=gl.createBuffer());
+  gl.bindBuffer(gl.ARRAY_BUFFER,b);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.STATIC_DRAW);
+  var loc = gl.getAttribLocation(prog,name);
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc,size,gl.FLOAT,false,0,0);
+}
+
+/* ── tiny mat4 (column-major) ─────────────────────────────────────────────── */
+function perspective(fovy,aspect,near,far){ var f=1/Math.tan(fovy/2),nf=1/(near-far);
+  return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]; }
+function lookAt(eye,ctr,up){
+  var z0=eye[0]-ctr[0],z1=eye[1]-ctr[1],z2=eye[2]-ctr[2];
+  var zl=1/Math.hypot(z0,z1,z2); z0*=zl;z1*=zl;z2*=zl;
+  var x0=up[1]*z2-up[2]*z1,x1=up[2]*z0-up[0]*z2,x2=up[0]*z1-up[1]*z0;
+  var xl=Math.hypot(x0,x1,x2)||1; xl=1/xl; x0*=xl;x1*=xl;x2*=xl;
+  var y0=z1*x2-z2*x1,y1=z2*x0-z0*x2,y2=z0*x1-z1*x0;
+  return [x0,y0,z0,0, x1,y1,z1,0, x2,y2,z2,0,
+    -(x0*eye[0]+x1*eye[1]+x2*eye[2]), -(y0*eye[0]+y1*eye[1]+y2*eye[2]), -(z0*eye[0]+z1*eye[1]+z2*eye[2]), 1]; }
+function mul(a,b){ var o=new Array(16);
+  for(var c=0;c<4;c++)for(var r=0;r<4;r++){ var s=0;
+    for(var k=0;k<4;k++) s+=a[k*4+r]*b[c*4+k]; o[c*4+r]=s; } return o; }
+var VP=null;
+function eyePos(){
+  return [ cam.cx+Math.cos(cam.az)*Math.cos(cam.el)*cam.r,
+           cam.cy+Math.sin(cam.el)*cam.r,
+           cam.cz+Math.sin(cam.az)*Math.cos(cam.el)*cam.r ]; }
+
+/* project a world point to screen px (for labels/hover) */
+function project(p){
+  if(!VP) return null;
+  var x=VP[0]*p[0]+VP[4]*p[1]+VP[8]*p[2]+VP[12];
+  var y=VP[1]*p[0]+VP[5]*p[1]+VP[9]*p[2]+VP[13];
+  var w=VP[3]*p[0]+VP[7]*p[1]+VP[11]*p[2]+VP[15];
+  if(w<=0) return null;
+  return { x:(x/w*0.5+0.5)*innerWidth, y:(-y/w*0.5+0.5)*innerHeight, w:w };
+}
+
+/* ── render loop ──────────────────────────────────────────────────────────── */
+function frame(now){
+  raf = requestAnimationFrame(frame);
+  if(!gl) return;
+  var t = (now-t0)/1000;
+  // ease camera
+  var k=0.06;
+  cam.az += (cam.azT-cam.az)*k; cam.el += (cam.elT-cam.el)*k; cam.r += (cam.rT-cam.r)*k;
+  cam.cx += (cam.cxT-cam.cx)*k; cam.cy += (cam.cyT-cam.cy)*k; cam.cz += (cam.czT-cam.cz)*k;
+  if(STATE.focus<0) cam.azT += 0.0016;  // slow idle orbit
+  // decay pulses
+  for(var i=0;i<6;i++) pulses[i]*=0.94;
+
+  var proj = perspective(Math.PI/4.2, innerWidth/innerHeight, 0.1, 100);
+  var view = lookAt(eyePos(), [cam.cx,cam.cy,cam.cz], [0,1,0]);
+  VP = mul(proj, view);
+
+  gl.clearColor(0.039,0.039,0.043,1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(prog);
+  gl.uniformMatrix4fv(gl.getUniformLocation(prog,"uVP"), false, new Float32Array(VP));
+  gl.uniform1f(gl.getUniformLocation(prog,"uTime"), t);
+  gl.uniform1f(gl.getUniformLocation(prog,"uFocus"), STATE.focus);
+  gl.uniform1f(gl.getUniformLocation(prog,"uFocusMix"), STATE.focus<0?0.0:0.72);
+  gl.uniform1f(gl.getUniformLocation(prog,"uDpr"), Math.min(window.devicePixelRatio||1,2));
+  gl.uniform1fv(gl.getUniformLocation(prog,"uPulse[0]"), new Float32Array(pulses));
+  if(N>0) gl.drawArrays(gl.POINTS, 0, N);
+
+  positionLabels();
+}
+
+/* ── floating cluster labels ──────────────────────────────────────────────── */
+var labelEls=[];
+function buildLabels(){
+  var box=el("labels"); box.innerHTML="";
+  labelEls = STAGES.map(function(s,i){
+    var d=document.createElement("div"); d.className="lab"; d.dataset.i=i;
+    d.innerHTML = s.name+' <i>'+(STATE.counts[i]|0)+'</i>';
+    box.appendChild(d); return d;
+  });
+}
+function positionLabels(){
+  for(var i=0;i<labelEls.length;i++){
+    var sp = project(CENTROIDS[i]);
+    var e=labelEls[i];
+    if(!sp){ e.style.opacity=0; continue; }
+    e.style.left = sp.x+"px"; e.style.top = (sp.y - 26)+"px";
+    e.classList.toggle("on", STATE.focus===i);
+  }
+}
+
+/* ── hover / focus ────────────────────────────────────────────────────────── */
+var mouse={x:-999,y:-999,inside:false};
+el("stage").addEventListener("mousemove", function(ev){ mouse.x=ev.clientX; mouse.y=ev.clientY; mouse.inside=true; pickFocus(); });
+el("stage").addEventListener("mouseleave", function(){ mouse.inside=false; setFocus(-1); });
+el("stage").addEventListener("click", function(){ /* click empty space clears lock */ lockFocus(-1); });
+var locked=-1;
+function pickFocus(){
+  if(locked>=0) return;
+  var best=-1,bd=110;
+  for(var i=0;i<6;i++){ var sp=project(CENTROIDS[i]); if(!sp) continue;
+    var dd=Math.hypot(sp.x-mouse.x, sp.y-mouse.y); if(dd<bd){bd=dd;best=i;} }
+  setFocus(best);
+}
+function setFocus(i){
+  if(STATE.focus===i) return;
+  STATE.focus=i;
+  if(i>=0){ var c=CENTROIDS[i];
+    cam.cxT=c[0]*0.55; cam.cyT=c[1]*0.6; cam.czT=c[2]*0.55;
+    cam.rT=13.5; cam.elT=0.24;
+    cam.azT = Math.atan2(c[2],c[0]) + 1.4;
+  } else { cam.cxT=0;cam.cyT=0;cam.czT=0; cam.rT=19; cam.elT=0.16; }
+  renderReadout(); syncLedger();
+}
+function lockFocus(i){ locked = (locked===i)? -1 : i; if(locked<0 && !mouse.inside) setFocus(-1); }
+
+/* ── readout / ledger ─────────────────────────────────────────────────────── */
+function renderReadout(){
+  var r=el("read"), f=STATE.focus, cum=STATE.cum;
+  if(f<0){
+    r.classList.remove("focus");
+    // Hero = the FURTHEST REAL milestone. Only ever shows money actually earned.
+    var ey, big, hot=false;
+    if(STATE.earned>0){ ey="Revenue earned"; big=moneyFull(STATE.earned); hot=true; }
+    else if(cum.meeting>0){ ey="Meetings booked"; big=String(cum.meeting); }
+    else if(cum.replied>0){ ey="Replies"; big=String(cum.replied); }
+    else if(cum.sent>0){ ey="Businesses reached"; big=String(cum.sent); }
+    else { ey="Drafts ready"; big=String((STATE.counts[0]|0)+(STATE.counts[1]|0)); }
+    r.classList.toggle("focus", hot);   // gold treatment only when it's real money
+    el("eyetext").textContent = ey;
+    el("bignum").textContent = big;
+    el("subtext").textContent = STATE.leads+" real leads · "+cum.sent+" sent · "
+      +cum.replied+" replied · "+cum.meeting+" meetings · "+moneyFull(STATE.earned)+" earned.";
+  } else {
+    r.classList.add("focus");
+    var c=STATE.counts[f]|0;
+    el("eyetext").textContent = STAGES[f].name;
+    el("bignum").textContent = String(c);
+    el("subtext").textContent = STAGES[f].name+" — "+c+" "+(c===1?"business":"businesses")+" here right now.";
+  }
+}
+function syncLedger(){
+  var box=el("ledger"); if(!box.dataset.built){ box.dataset.built=1;
+    box.innerHTML = STAGES.map(function(s,i){ return '<div class="row" data-i="'+i+'"><span class="nm">'+s.name+'</span><span class="ct" id="lc'+i+'">0</span></div>'; }).join("");
+    Array.prototype.forEach.call(box.querySelectorAll(".row"), function(row){
+      var i=+row.dataset.i;
+      row.addEventListener("mouseenter", function(){ setFocus(i); });
+      row.addEventListener("mouseleave", function(){ if(locked<0) setFocus(-1); });
+      row.addEventListener("click", function(){ lockFocus(i); });
+    });
+  }
+  for(var i=0;i<6;i++){ var c=el("lc"+i); if(c) c.textContent=STATE.counts[i]|0;
+    var row=box.querySelector('.row[data-i="'+i+'"]'); if(row) row.classList.toggle("on", STATE.focus===i); }
+}
+
+/* ── data ─────────────────────────────────────────────────────────────────── */
+function setLive(ok){ var e=el("live"); el("livetext").textContent=ok?"Live":"Offline"; e.classList.toggle("off",!ok); }
+
+async function loadData(){
+  try{
+    // /api/hud = REAL web-machine data only (no mock/demo leads, no projected $)
+    var h = await fetch(API+"/api/hud").then(function(r){return r.json();});
+    setLive(true);
+    var s=h.stages||{};
+    STATE.counts = [s.queued||0, s.approved||0, s.sent||0, s.replied||0, s.meeting||0, s.won||0];
+    STATE.cum = h.cumulative || {sent:0,replied:0,meeting:0,won:0};
+    STATE.earned = h.earned||0;
+    STATE.leads = h.leads||0;
+    STATE.replies = h.replies||[];
+    buildParticles(); buildLabels(); syncLedger(); renderReadout(); renderReplies();
+    loadConn();
+  }catch(e){ setLive(false); }
+}
+
+async function loadConn(){
+  try{
+    var g = await fetch(API+"/api/gmail/status").then(function(r){return r.json();});
+    var c=el("conn"); var warn=!g.read_ok;
+    c.className = "conn"+(warn?" warn":"");
+    c.innerHTML = g.read_ok
+      ? '<span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--gold);display:inline-block"></span> '+(g.message||"Gmail connected — sends + replies tracked.")
+      : 'Replies off — run <code>python gmail_read.py</code> once to track them.';
+  }catch(e){}
+}
+function renderReplies(){
+  var box=el("replies"), ul=el("replylist"), list=STATE.replies||[];
+  if(!list.length){ box.classList.remove("show"); return; }
+  box.classList.add("show");
+  ul.innerHTML = list.map(function(l){ return '<div class="r"><span class="c">'+(l.company_name||"")+'</span><span class="e">'+(l.contact_email||"")+'</span></div>'; }).join("");
+}
+
+/* ── sync ─────────────────────────────────────────────────────────────────── */
+function toast(msg){ var t=el("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(function(){ t.classList.remove("show"); },4200); }
+async function syncGmail(){
+  var b=el("syncbtn"); b.disabled=true;
+  try{
+    var r = await fetch(API+"/api/gmail/sync",{method:"POST"}).then(function(x){return x.json();});
+    var prevRep = STATE.counts[3];
+    await loadData();
+    if(r.sent_detected) pulses[2]=1.0;            // sent cluster flares
+    if(r.replies_detected){ pulses[3]=1.0; pulses[4]=0.4; }
+    var msg=(r.sent_detected||0)+" newly sent · "+(r.replies_detected||0)+" replies";
+    if(!r.read_authorized) msg+=" · read off";
+    toast(msg);
+  }catch(e){ toast("sync failed — is the backend up?"); }
+  finally{ b.disabled=false; }
+}
+el("syncbtn").addEventListener("click", syncGmail);
+
+/* ── boot ─────────────────────────────────────────────────────────────────── */
+if(initGL()){ frame(performance.now()); }
+loadData();
+setInterval(loadData, 20000);
+</script>
+</body>
+</html>

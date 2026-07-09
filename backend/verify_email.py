@@ -24,6 +24,37 @@ import config
 _SYNTAX = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
 _mx_cache: dict[str, bool] = {}
 
+# MillionVerifier can silently run dry (returns result:'error', credits:0) and
+# then verification quietly degrades to MX-only — which proves the DOMAIN takes
+# mail, NOT that the mailbox exists (this is how info@nunezheatingandcooling.com
+# bounced). Surface it LOUDLY the first time so Ian knows real mailbox
+# verification is off and can decide to top up.
+_credit_warning_shown = False
+verifier_out_of_credits = False
+
+
+def verifier_status() -> dict:
+    """Cheap probe of the MillionVerifier key so callers/UI can tell Ian whether
+    real mailbox verification is live or we're on MX-only. Never raises."""
+    key = getattr(config, "VERIFIER_API_KEY", "")
+    if not key:
+        return {"configured": False, "ok": False, "credits": None,
+                "message": "No VERIFIER_API_KEY set — MX-only (domain accepts mail, mailbox unverified)."}
+    try:
+        with httpx.Client(timeout=15) as c:
+            r = c.get("https://api.millionverifier.com/api/v3/credits.json",
+                      params={"api": key})
+        data = r.json()
+        credits = data.get("credits")
+        if isinstance(credits, (int, float)) and credits <= 0:
+            return {"configured": True, "ok": False, "credits": credits,
+                    "message": "MillionVerifier is OUT OF CREDITS — on MX-only. Top up or accept domain-match."}
+        return {"configured": True, "ok": True, "credits": credits,
+                "message": f"MillionVerifier live ({credits} credits)."}
+    except Exception as e:
+        return {"configured": True, "ok": False, "credits": None,
+                "message": f"MillionVerifier unreachable ({type(e).__name__}) — on MX-only."}
+
 try:
     import dns.resolver
     _DNS = True
@@ -68,13 +99,26 @@ def _millionverifier(email: str) -> str | None:
         with httpx.Client(timeout=15) as c:
             r = c.get("https://api.millionverifier.com/api/v3/",
                       params={"api": key, "email": email, "timeout": 10})
-        result = (r.json().get("result") or "").lower()
+        data = r.json()
+        result = (data.get("result") or "").lower()
         if result == "ok":
             return "valid"
         if result in ("invalid", "disposable"):
             return "invalid"
         if result in ("catch_all", "unknown"):
             return "risky"
+        # Anything else = the API refused (out of credits / error). Warn ONCE.
+        global _credit_warning_shown, verifier_out_of_credits
+        credits = data.get("credits")
+        if result == "error" or credits == 0:
+            verifier_out_of_credits = True
+            if not _credit_warning_shown:
+                _credit_warning_shown = True
+                print("[verify_email] !! MillionVerifier unavailable "
+                      f"(result={result!r}, credits={credits}, error={data.get('error')!r}). "
+                      "Verification is now MX-ONLY: it confirms the domain accepts mail, "
+                      "NOT that the mailbox exists. Top up at millionverifier.com or accept "
+                      "domain-match. (This is the class of bug behind the recent bounces.)")
     except Exception:
         pass
     return None

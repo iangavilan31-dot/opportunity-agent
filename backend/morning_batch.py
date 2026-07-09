@@ -106,7 +106,7 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
     db.refresh(run)
 
     queued = skipped_existing = skipped_lowopp = skipped_lang = errors = drafted = 0
-    skipped_modern = 0
+    downranked_modern = modern_drafted = vision_used = 0
     try:
         max_analyze = getattr(config, "AUTOPILOT_MAX_ANALYZE", 150)
         targets, source = web_targets.load_targets(limit=max_analyze)
@@ -132,7 +132,8 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
         def _analyze_one(pair):
             t, job_id = pair
             try:
-                signals = t.get("signals") or website_signals.analyze(t.get("domain", ""))
+                signals = t.get("signals") or website_signals.analyze(
+                    t.get("domain", ""), name_hint=t.get("company_name", ""))
                 # Trust gap: strong Google reviews + none shown on the site.
                 # Runs before the opportunity gate — it's a conversion defect.
                 website_signals.apply_trust_gap(
@@ -213,10 +214,37 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
             except Exception as e:
                 _log(run_log, f"Screenshots failed (non-fatal): {e}")
 
+        # ── Phase 1.6: visual gate = DOWNRANK, not drop ─────────────────────
+        # Real eyes on each screenshot BEFORE we pick the daily set. A 'modern'
+        # verdict means the heuristic over-flagged a decent site — but Ian would
+        # still email them at low priority, so we subtract a big penalty (they
+        # sink below every dated site) instead of dropping the lead. 'dated'
+        # verdicts hand back the visible flaws to sharpen the opener.
         if vision_on:
             _log(run_log, f"Visual gate: ON ({getattr(config, 'VISION_MODEL', 'gpt-4o-mini')}) "
-                          f"— drops sites that look modern, sharpens openers on dated ones")
-        vision_used = 0
+                          f"— downranks modern-looking sites, sharpens openers on dated ones")
+            penalty = getattr(config, "VISION_MODERN_PENALTY", 1000.0)
+            for c in gate_pool:
+                shot = shots_by_job.get(c["job_id"])
+                if not shot:
+                    c["visual_verdict"] = "unknown"
+                    c["visual_notes"] = []
+                    continue
+                try:
+                    a = vision_audit.assess(shot)
+                except Exception:
+                    a = {"verdict": "unknown", "problems": []}
+                c["visual_verdict"] = a["verdict"]
+                c["visual_notes"] = a.get("problems", []) or []
+                if a["verdict"] == "modern":
+                    c["likelihood"] = round(c["likelihood"] - penalty, 1)
+                    downranked_modern += 1
+                elif c["visual_notes"]:
+                    vision_used += 1
+            # Re-rank now that modern sites carry their penalty; dated stay put.
+            gate_pool.sort(key=lambda c: c["likelihood"], reverse=True)
+            _log(run_log, f"Visual gate: downranked {downranked_modern} modern-looking "
+                          f"sites, sharpened {vision_used} openers")
 
         # ── Phase 2: gate on looks, write copy, create Gmail draft, persist ──
         for c in gate_pool:
@@ -233,33 +261,13 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
                 contact = owner_name.find(company, t.get("domain", "")) or ""
             except Exception:
                 contact = ""
-            # Visual gate: real eyes on the screenshot. 'modern' -> drop the lead
-            # (the heuristic over-flagged a good site); 'dated' -> use the visible
-            # flaws as the opener (replaces the weak "you're on Wix" guess).
-            visual_notes = []
-            if vision_on and shots_by_job.get(c["job_id"]):
-                try:
-                    a = vision_audit.assess(shots_by_job[c["job_id"]])
-                    if a["verdict"] == "modern":
-                        skipped_modern += 1
-                        # Persist a rejected marker so dedup skips it next run
-                        # (don't re-screenshot a known-good site every day).
-                        db.add(Lead(
-                            source="website_autopilot", job_id=c["job_id"],
-                            company_name=company,
-                            company_domain=website_signals.clean_host(t.get("domain", "")),
-                            job_location=city, niche="web_design", niche_label="Website",
-                            pain_category="website", automation_score=c["opportunity"],
-                            score_reasoning="site looks modern on visual gate — skipped",
-                            status="rejected"))
-                        db.commit()
-                        existing_ids.add(c["job_id"])
-                        continue
-                    visual_notes = a["problems"]
-                    if visual_notes:
-                        vision_used += 1
-                except Exception:
-                    visual_notes = []
+            # Visual gate already ran in Phase 1.6: 'modern' sites were penalised
+            # to the bottom of the ranking (drafted only if the pool is short),
+            # 'dated' sites handed back visible flaws for the opener. If a modern
+            # site DID surface into the daily set, note it so Ian sees why.
+            visual_notes = c.get("visual_notes", [])
+            if c.get("visual_verdict") == "modern":
+                modern_drafted += 1  # pool was short — a downranked site filled a slot
             suite = web_offer.generate_website_suite(
                 company_name=company, city=city, category=category,
                 contact_name=contact, signals=signals, visual_notes=visual_notes,
@@ -347,7 +355,8 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
         if contact_sheet:
             _log(run_log, f"Visual grading sheet ready: {contact_sheet}")
         if vision_on:
-            _log(run_log, f"Visual gate: dropped {skipped_modern} modern-looking sites, "
+            _log(run_log, f"Visual gate: downranked {downranked_modern} modern-looking sites "
+                          f"({modern_drafted} still drafted to fill the target), "
                           f"sharpened {vision_used} openers from real screenshots")
 
         run.leads_scored = len(targets)
@@ -361,12 +370,13 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
 
         _log(run_log, f"Done. {queued} leads {landing_status} | {drafted} Gmail drafts | "
                       f"{skipped_existing} already had | {skipped_lowopp} sites fine | "
-                      f"{skipped_modern} modern (visual gate) | {skipped_lang} non-English | "
-                      f"{errors} errors")
+                      f"{downranked_modern} modern downranked ({modern_drafted} drafted) | "
+                      f"{skipped_lang} non-English | {errors} errors")
         return {
             "ok": True, "queued": queued, "drafted": drafted, "status": landing_status,
             "skipped_existing": skipped_existing, "skipped_lowopp": skipped_lowopp,
-            "skipped_modern": skipped_modern, "skipped_lang": skipped_lang,
+            "downranked_modern": downranked_modern, "modern_drafted": modern_drafted,
+            "skipped_lang": skipped_lang,
             "errors": errors, "source": source, "run_id": run.id,
         }
     except Exception as e:

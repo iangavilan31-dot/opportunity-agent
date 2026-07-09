@@ -67,6 +67,28 @@ _ROLE_PREFERENCE = ["owner", "info", "contact", "hello", "office", "frontdesk",
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 _BAD_EMAIL_SUFFIX = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".css", ".js")
 
+# Free mailbox providers a small local business legitimately uses as its real
+# inbox (a dentist on gmail is normal). Address here = trust it.
+_FREE_EMAIL_PROVIDERS = {
+    "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "ymail.com",
+    "rocketmail.com", "outlook.com", "hotmail.com", "hotmail.co.uk", "live.com",
+    "msn.com", "aol.com", "icloud.com", "me.com", "mac.com", "comcast.net",
+    "sbcglobal.net", "att.net", "verizon.net", "cox.net", "protonmail.com",
+    "proton.me", "gmx.com", "gmx.us", "zoho.com", "ymail.co.uk",
+}
+
+# Web developers / agencies / site-builder support domains. An address on one of
+# these scraped off a footer is the VENDOR, never the business — sending to it
+# bounces or emails a competitor. This list is why terravitasmiles@gmail.com is
+# kept but eben@eyebytes.com (a web dev on a law firm's footer) is rejected.
+_VENDOR_EMAIL_DOMAINS = (
+    "eyebytes.com", "wix.com", "wixpress.com", "squarespace.com", "godaddy.com",
+    "secureserver.net", "duda.co", "dudamobile.com", "vendasta.com", "weebly.com",
+    "jimdo.com", "yola.com", "site123.com", "webnode.com", "webflow.com",
+    "wordpress.com", "hostgator.com", "bluehost.com", "sentry.io", "sentry.wixpress.com",
+    "example.com", "domain.com", "yourdomain.com", "email.com", "sentry-next.wixpress.com",
+)
+
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " \
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 
@@ -85,36 +107,116 @@ def is_social(domain: str) -> bool:
     return any(host == s or host.endswith("." + s) for s in _SOCIAL_HOSTS)
 
 
-def _pick_email(candidates: list[str], host: str) -> str:
-    """Choose the best contact email scraped from a page."""
-    seen: list[str] = []
-    for c in candidates:
-        c = c.strip().strip(".").lower()
-        if not c or c.endswith(_BAD_EMAIL_SUFFIX):
-            continue
-        if any(x in c for x in ("example.com", "sentry.", "@2x", "wixpress.com", "godaddy.com")):
-            continue
-        if c not in seen:
-            seen.append(c)
-    if not seen:
+def registrable_domain(host: str) -> str:
+    """The registrable part of a host — the last two labels, lowercased
+    (kineticfamchiro.com from www.kineticfamchiro.com). Good enough to compare
+    an email's domain against the business's own domain. Not a full public-suffix
+    parse; a multi-label ccTLD (foo.co.uk) collapses to co.uk, which only makes
+    the own-domain check STRICTER (safe — we abstain rather than mis-send)."""
+    h = clean_host(host)
+    parts = [p for p in h.split(".") if p]
+    return ".".join(parts[-2:]) if len(parts) >= 2 else h
+
+
+_BIZ_TOKEN_STOP = {"the", "and", "llc", "inc", "pllc", "corp", "co", "company",
+                   "clinic", "center", "group", "services", "service", "care",
+                   "family", "az", "arizona", "www", "com"}
+
+
+def _local_matches_business(local: str, host: str, name_hint: str = "") -> bool:
+    """Does this email's local-part clearly belong to THIS business? Used to
+    trust a free-provider address that was only text-scraped (not in a mailto:).
+    terravitasmiles@gmail.com on terravitasmiles.com -> yes; impallari@gmail.com
+    (the Lato font author, scraped from a CSS comment) on ironwoodroofing.com ->
+    no. Token overlap of >=4 chars between the local part and the site
+    root / business name."""
+    loc = re.sub(r"[^a-z0-9]", "", local.lower())
+    if len(loc) < 3:
+        return False
+    tokens: set[str] = set()
+    root = registrable_domain(host).split(".")[0]
+    if root:
+        tokens.add(re.sub(r"[^a-z0-9]", "", root.lower()))
+    for w in re.split(r"[^a-z0-9]+", (name_hint or "").lower()):
+        if len(w) >= 4 and w not in _BIZ_TOKEN_STOP:
+            tokens.add(w)
+    for tok in tokens:
+        if len(tok) >= 4 and (tok in loc or loc in tok):
+            return True
+    return False
+
+
+def is_trustworthy_email(email: str, host: str, *, from_mailto: bool = False,
+                         name_hint: str = "") -> bool:
+    """Can we trust this scraped address to actually reach THIS business?
+
+    True ONLY when the address is:
+      • on the business's own domain (registrable domain matches the site), or
+      • on a known free mailbox provider (gmail/outlook/...) AND it either came
+        from a real `mailto:` link (intentional contact) or its local-part
+        clearly matches the business name/site.
+
+    Everything else is rejected: a web developer's address (eben@eyebytes.com —
+    the bounce that started this), a builder's support inbox, a third-party
+    company domain, or a free-provider address scraped from a font/library
+    comment (impallari@gmail.com off a Lato font). A wrong TO address bounces and
+    burns the sender's reputation, so the rule is: trust it or drop it, never
+    guess. When only a bare string is available (re-auditing a stored address),
+    from_mailto defaults False — the stricter path — so a suspect gmail gets
+    dropped rather than kept."""
+    email = (email or "").strip().strip(".").lower()
+    if not email or email.count("@") != 1 or email.endswith(_BAD_EMAIL_SUFFIX):
+        return False
+    local, _, dom = email.partition("@")
+    if not local or "." not in dom or "@2x" in email:
+        return False
+    if any(dom == v or dom.endswith("." + v) for v in _VENDOR_EMAIL_DOMAINS):
+        return False
+    reg = registrable_domain(dom)
+    site = registrable_domain(host)
+    if bool(site) and reg == site:
+        return True                      # the business's own domain
+    if reg in _FREE_EMAIL_PROVIDERS:
+        return from_mailto or _local_matches_business(local, host, name_hint)
+    return False
+
+
+def _pick_email(mailtos: list[str], texts: list[str], host: str,
+                name_hint: str = "") -> str:
+    """Choose the best TRUSTWORTHY contact email, or '' if none can be trusted to
+    reach this business (abstain over guess — see is_trustworthy_email).
+
+    `mailtos` = addresses from `mailto:` links (intentional contact points);
+    `texts`   = addresses regex-scraped from page text (riskier — may be a font
+    author, a testimonial, an example). mailto sources are trusted first."""
+    site = registrable_domain(host)
+    trusted: list[str] = []
+    seen: set[str] = set()
+    for src, is_mailto in ((mailtos, True), (texts, False)):
+        for c in (src or []):
+            c = (c or "").strip().strip(".").lower()
+            if not c or c in seen:
+                continue
+            seen.add(c)
+            if is_trustworthy_email(c, host, from_mailto=is_mailto, name_hint=name_hint):
+                trusted.append(c)
+    if not trusted:
         return ""
-    root = host.split(".")[-2] if host.count(".") >= 1 else host
-    # 1) role account on the business's own domain
+    own = [e for e in trusted if registrable_domain(e.split("@")[-1]) == site]
+    # 1) a role account on the business's OWN domain (info@, owner@, ...)
     for pref in _ROLE_PREFERENCE:
-        for e in seen:
-            local, _, dom = e.partition("@")
-            if local == pref and root and root in dom:
+        for e in own:
+            if e.split("@")[0] == pref:
                 return e
     # 2) any address on the business's own domain
-    for e in seen:
-        if root and root in e.split("@")[-1]:
-            return e
-    # 3) any role account
+    if own:
+        return own[0]
+    # 3) otherwise a trusted address (mailto ones are already ordered first)
     for pref in _ROLE_PREFERENCE:
-        for e in seen:
-            if e.startswith(pref + "@"):
+        for e in trusted:
+            if e.split("@")[0] == pref:
                 return e
-    return seen[0]
+    return trusted[0]
 
 
 def _fetch(url: str, timeout: float = 12.0, verify: bool = True) -> tuple[httpx.Response | None, float, str]:
@@ -253,12 +355,16 @@ def apply_trust_gap(signals: dict, rating, review_count) -> None:
     signals["opportunity_score"] = min(100, int(signals.get("opportunity_score", 0)) + 10)
 
 
-def analyze(domain: str) -> dict:
+def analyze(domain: str, name_hint: str = "") -> dict:
     """
     Analyze a business's web presence. Always returns a result dict; never raises.
 
     opportunity_score (0-100) is how much this business NEEDS a new site:
     100 = no site at all, ~30 = clean modern site (skip -- don't pitch them).
+
+    name_hint (the business name) helps the email picker trust a free-provider
+    address whose local-part matches the business but not the domain
+    (mesachiropracticpllc@gmail.com on mesaazchiropractic.com).
     """
     res = _empty_result(domain)
     host = res["domain"]
@@ -505,8 +611,12 @@ def analyze(domain: str) -> dict:
     res["opportunity_score"] = min(100, score)
 
     # ── Scrape a contact email ──────────────────────────────────────────────
+    # mailto: links are intentional contact points (trust free-provider ones);
+    # regex-scraped text addresses are riskier (a font author / library email in
+    # a CSS comment, a testimonial) and a free-provider one must match the biz.
     mailtos = re.findall(r"mailto:([^\"'?>\s]+)", html, re.IGNORECASE)
-    res["contact_email"] = _pick_email(list(mailtos) + _EMAIL_RE.findall(html), host)
+    res["contact_email"] = _pick_email(list(mailtos), _EMAIL_RE.findall(html),
+                                       host, name_hint=name_hint)
 
     # Top issues, worst-first, for the email copy.
     order = {"high": 0, "med": 1, "low": 2}

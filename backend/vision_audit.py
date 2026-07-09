@@ -4,8 +4,9 @@ and returns the concrete, visible problems a human would notice.
 
 This is the sharpest, cheapest reply-rate lever: it turns weak platform-guess
 openers ("you're on Wix") into undeniable, specific observations ("the phone
-number is below three scrolls, the hero is a stock photo, three different
-fonts"). ~$0.0004/site on gpt-4o-mini — cents a day for the shortlist.
+number is below three scrolls, the nav is cramped, three different fonts").
+~$0.0004/site on gpt-4o-mini — cents a day for the shortlist. It never critiques
+photography — we redesign layouts, we don't supply a business's photos.
 
 Grounded, not generative: the model only describes what's IN the screenshot.
 Prompted hard for restraint (no praise, no guessing, no invented content) so
@@ -32,12 +33,22 @@ _SYS = (
     "clearly dated / amateur / template-looking. Judge only what is visible. Be "
     "CONSERVATIVE: if it looks clean, current, and competently designed — even if "
     "not fancy — call it 'modern'. Only call it 'dated' when it is obviously old "
-    "or amateur (tiny cramped text, clip-art, default template look, no real "
-    "photos, broken layout, 2000s styling). When 'dated', list only the specific "
-    "flaws you can actually SEE. When 'modern', problems MUST be empty. "
+    "or amateur (tiny cramped text, clip-art, default template look, broken "
+    "layout, cluttered navigation, dated color scheme, 2000s styling). When "
+    "'dated', list only the specific flaws you can actually SEE. When 'modern', "
+    "problems MUST be empty. "
+    "NEVER criticize photography, images, or the lack of professional photos — we "
+    "redesign layouts, we do not supply a business's photos, and 'no professional "
+    "images' reads as an insult and isn't something we'd fix. Judge only layout, "
+    "typography, spacing, color, structure, and overall modernity. "
     "Return STRICT JSON: {\"verdict\": \"modern\"|\"dated\", "
     "\"problems\": [\"short lowercase phrase under 12 words\", ...]} (<=3 problems)."
 )
+
+# Belt-and-suspenders: even with the instruction above, a model may still return
+# a photo/image critique. We hard-drop any problem that blames visual assets —
+# it's unactionable in a cold email and reads as an insult (Ian, 2026-07-09).
+_ASSET_BLAME = ("photo", "image", "picture", "imagery", "stock")
 
 
 def _is_blank(path: str) -> bool:
@@ -106,7 +117,7 @@ def assess(screenshot_path: str) -> dict:
         if verdict == "dated":
             for p in (data.get("problems") or [])[:3]:
                 p = str(p).strip().rstrip(".")
-                if 3 < len(p) < 90:
+                if 3 < len(p) < 90 and not any(w in p.lower() for w in _ASSET_BLAME):
                     problems.append(p)
         return {"verdict": verdict, "problems": problems}
     except Exception as e:

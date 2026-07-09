@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Inbox, Send, GitBranch, Mail, Repeat, BarChart3, Settings as SettingsIcon } from 'lucide-react'
+import { LayoutDashboard, Inbox, Send, GitBranch, Mail, Repeat, BarChart3, Settings as SettingsIcon, Gauge, ExternalLink } from 'lucide-react'
 import { api } from '../api'
 
 const nav: Array<{
@@ -74,6 +74,19 @@ export default function Sidebar() {
           )
         })}
       </nav>
+
+      <div className="p-2 border-t border-border">
+        <a
+          href="http://localhost:8010/hud"
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-sm text-muted hover:text-primary hover:bg-s2 transition-colors"
+        >
+          <Gauge size={14} strokeWidth={1.5} className="text-red-500" />
+          <span className="flex-1">Business HUD</span>
+          <ExternalLink size={11} strokeWidth={1.5} className="text-dim" />
+        </a>
+      </div>
 
       <div className="p-3 border-t border-border">
         <div className="text-2xs text-dim font-mono">v0.1.0 · local</div>

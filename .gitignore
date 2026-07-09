@@ -5,6 +5,7 @@ backend/logs/
 backend/.env
 backend/gmail_credentials.json
 backend/gmail_token.json
+backend/gmail_read_token.json
 backend/opportunity_agent.db
 backend/sender_profile.json
 frontend/dist/
