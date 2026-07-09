@@ -34,7 +34,7 @@ import httpx
 
 import config
 
-_UA = "opportunity-agent-outreach/1.0 (+https://gavika.vercel.app; iangavilan31@gmail.com)"
+_UA = "opportunity-agent-outreach/1.0 (+https://gavika.pages.dev; iangavilan31@gmail.com)"
 
 _HERE = os.path.dirname(__file__)
 _ROOT = os.path.abspath(os.path.join(_HERE, ".."))

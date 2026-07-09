@@ -37,7 +37,7 @@ WEB_MONTHLY_PRICE = int(os.getenv("WEB_MONTHLY_PRICE", "99"))
 
 # Outreach identity + social proof shown in every email.
 STUDIO_NAME = os.getenv("STUDIO_NAME", "Gavika")
-PORTFOLIO_URL = os.getenv("PORTFOLIO_URL", "https://gavika.vercel.app")
+PORTFOLIO_URL = os.getenv("PORTFOLIO_URL", "https://gavika.pages.dev")
 # Offer a quick Google Meet alongside the free-mockup give-first CTA.
 OFFER_MEET = os.getenv("OFFER_MEET", "true").lower() == "true"
 
@@ -81,6 +81,17 @@ OUTREACH_LANGS = [x.strip().lower() for x in
 # and Maps sourcing gives us their phone number for manual contact. They rank
 # below bad-site-with-reviews leads (which have proven they'll pay for a site).
 SOURCING_REQUIRE_WEBSITE = os.getenv("SOURCING_REQUIRE_WEBSITE", "false").lower() == "true"
+
+# ── Visual UI audit (GPT-4o-mini reads the screenshot -> real UI problems) ───
+# The sharpest reply-rate lever: turns "you're on Wix" into "your phone number
+# is below three scrolls". ~$0.0004/site on gpt-4o-mini (cents/day for the
+# shortlist). Skips cleanly with no key. Get a key at platform.openai.com.
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+VISION_ENABLED = os.getenv("VISION_ENABLED", "true").lower() == "true"
+VISION_MODEL = os.getenv("VISION_MODEL", "gpt-4o-mini")
+# The gate drops sites that look modern, so screenshot+judge a bigger pool than
+# the daily draft target to refill with genuinely-bad-looking prospects.
+VISION_GATE_POOL = int(os.getenv("VISION_GATE_POOL", "90"))
 
 # ── Screenshot pipeline (visual grading) ─────────────────────────────────────
 # After ranking, capture mobile+desktop screenshots of the selected leads into

@@ -27,16 +27,17 @@ def _slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (name or "site").lower()).strip("-")[:60] or "site"
 
 
-def capture(items: list[dict], max_shots: int = 40, log=print) -> str | None:
-    """items: [{company, url, issues}]. Returns the contact-sheet path or None."""
+def capture(items: list[dict], max_shots: int = 40, log=print) -> tuple[str | None, str | None]:
+    """items: [{company, url, issues}] — each gets item['shots']={mobile,desktop}
+    filenames populated in place. Returns (contact_sheet_path, out_dir)."""
     items = [i for i in items if i.get("url")][:max_shots]
     if not items:
-        return None
+        return None, None
     try:
         from playwright.sync_api import sync_playwright
     except Exception:
         log("[screenshots] playwright not installed — skipping (pip install playwright)")
-        return None
+        return None, None
 
     out_dir = os.path.join(SHOTS_ROOT, date.today().isoformat())
     os.makedirs(out_dir, exist_ok=True)
@@ -48,7 +49,7 @@ def capture(items: list[dict], max_shots: int = 40, log=print) -> str | None:
                 browser = pw.chromium.launch(headless=True)
             except Exception as e:
                 log(f"[screenshots] chromium unavailable ({e}) — run: playwright install chromium")
-                return None
+                return None, None
             for kind, opts in (("mobile", _MOBILE), ("desktop", _DESKTOP)):
                 ctx = browser.new_context(**opts)
                 ctx.set_default_timeout(15000)
@@ -57,8 +58,22 @@ def capture(items: list[dict], max_shots: int = 40, log=print) -> str | None:
                     slug = _slug(it["company"])
                     fname = f"{slug}_{kind}.png"
                     try:
-                        page.goto(it["url"], wait_until="domcontentloaded", timeout=15000)
-                        page.wait_for_timeout(1200)  # settle fonts/hero images
+                        page.goto(it["url"], wait_until="domcontentloaded", timeout=20000)
+                        # Wait for the page to actually paint — JS-heavy sites are
+                        # blank at domcontentloaded, and a blank frame makes the
+                        # vision auditor hallucinate. Give the network a moment to
+                        # settle, then confirm the body has real content.
+                        try:
+                            page.wait_for_load_state("networkidle", timeout=8000)
+                        except Exception:
+                            pass
+                        try:
+                            page.wait_for_function(
+                                "document.body && document.body.innerText.trim().length > 40",
+                                timeout=6000)
+                        except Exception:
+                            pass
+                        page.wait_for_timeout(1500)  # settle fonts/hero images
                         page.screenshot(path=os.path.join(out_dir, fname))
                         it.setdefault("shots", {})[kind] = fname
                         done += 1
@@ -68,7 +83,7 @@ def capture(items: list[dict], max_shots: int = 40, log=print) -> str | None:
             browser.close()
     except Exception as e:
         log(f"[screenshots] batch failed: {e}")
-        return None
+        return None, out_dir
 
     for it in items:
         shots = it.get("shots", {})
@@ -98,4 +113,4 @@ def capture(items: list[dict], max_shots: int = 40, log=print) -> str | None:
 <h1>Shortlisted lead sites — {date.today()} ({done // 2 if done else 0} captured)</h1>
 <div class="grid">{"".join(cards)}</div>""")
     log(f"[screenshots] {done} shots -> {sheet}")
-    return sheet
+    return sheet, out_dir

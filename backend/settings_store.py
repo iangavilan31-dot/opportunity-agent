@@ -15,7 +15,7 @@ DEFAULTS = {
     "sender_name": "",          # e.g. "Ian Gavilan"
     "positioning": "",          # e.g. "I automate back-office workflows for small teams"
     "calendar_link": "",        # e.g. "cal.com/ian/15min" (only if it's REAL)
-    "site_link": "",            # e.g. "https://gavika.vercel.app" — studio link in the signature
+    "site_link": "",            # e.g. "https://gavika.pages.dev" — studio link in the signature
     "sender_email": "",         # reply-to / from address (info only)
     # CAN-SPAM requires a physical postal address in every commercial email.
     # A PO Box counts (and keeps a home address off cold emails).

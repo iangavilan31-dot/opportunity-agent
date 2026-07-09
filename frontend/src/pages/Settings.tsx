@@ -63,7 +63,7 @@ export default function Settings() {
           {field('sender_name', 'Your name', 'Ian Gavilan', 'Replaces "[Your name]" in every email')}
           {field('positioning', 'One-line positioning (optional)', 'I automate back-office workflows for small teams', 'Appended after your name as a credibility signal')}
           {field('calendar_link', 'Calendar link (optional)', 'cal.com/ian/15min', 'Only if it is a REAL booking page — a dead link kills trust')}
-          {field('site_link', 'Studio site link (optional)', 'https://gavika.vercel.app', 'Shown in your signature (e.g. gavika.vercel.app)')}
+          {field('site_link', 'Studio site link (optional)', 'https://gavika.pages.dev', 'Shown in your signature (e.g. gavika.pages.dev)')}
           {field('sender_email', 'Sending email (optional)', 'ian@youragency.com', 'For your reference — used when exporting .eml')}
           {field('postal_address', 'Mailing address (CAN-SPAM)', 'Gavika · PO Box 123, Phoenix, AZ 85001', 'Required by law in every commercial email — a PO Box works and keeps your home address private')}
 

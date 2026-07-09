@@ -102,7 +102,7 @@ python morning_batch.py
 | `WEB_SETUP_PRICE` | 1200 | Your build price (shown in the email) |
 | `WEB_MONTHLY_PRICE` | 99 | Your monthly hosting/maintenance price |
 | `STUDIO_NAME` | Gavika | Studio name cited in the email |
-| `PORTFOLIO_URL` | https://gavika.vercel.app | Proof link in every email |
+| `PORTFOLIO_URL` | https://gavika.pages.dev | Proof link in every email |
 | `OFFER_MEET` | true | Offer a quick Google Meet alongside the free mockup |
 | `GMAIL_ENABLED` | true | Create real Gmail drafts (needs `GMAIL_SETUP.md`) |
 | `SOURCING_ENABLED` | true | Auto-source businesses from OpenStreetMap when no `targets.csv` |

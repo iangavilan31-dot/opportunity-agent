@@ -22,7 +22,7 @@ import httpx
 
 import config
 
-_UA = "opportunity-agent-outreach/1.0 (+https://gavika.vercel.app; iangavilan31@gmail.com)"
+_UA = "opportunity-agent-outreach/1.0 (+https://gavika.pages.dev; iangavilan31@gmail.com)"
 _NOMINATIM = "https://nominatim.openstreetmap.org/search"
 _OVERPASS = "https://overpass-api.de/api/interpreter"
 

@@ -130,15 +130,42 @@ def generate_website_suite(
     category: str,
     contact_name: str,
     signals: dict,
+    visual_notes: list[str] | None = None,
 ) -> dict:
     fn = _first_name(contact_name)
     noun, how_found = _ctx(category)
     nouns = _plural(noun)
     offer = offer_pack()
-    issues = signals.get("headline_issues", []) or ["a few things worth fixing"]
+    # Visual notes (from a real screenshot read by vision) are the most specific,
+    # human-sounding observations we have — promote them into the headline list
+    # so they lead the email, ahead of the weak platform-guess ("you're on Wix").
+    visual_notes = [v for v in (visual_notes or []) if v][:2]
+    base_issues = signals.get("headline_issues", []) or ["a few things worth fixing"]
+    if visual_notes:
+        # Keep a structural/reviews finding if it's stronger; else visuals lead.
+        top = base_issues[0] if base_issues else ""
+        top_code = (signals.get("findings") or [{}])[0].get("code", "")
+        if top_code in ("no_domain", "social_only", "unreachable", "trust_gap"):
+            issues = [top] + visual_notes + base_issues[1:]
+        else:
+            issues = visual_notes + base_issues
+    else:
+        issues = base_issues
     lead_issue = issues[0]
     company_name = _short_name(company_name)  # display only; DB keeps the full name
-    issue_clause = _issue_clause(signals, company_name, noun, how_found)
+    # If a visual note is leading, open on it (most specific, most human); else
+    # use the code-based clause for structural/technical/reviews findings.
+    if visual_notes and lead_issue in visual_notes:
+        if len(visual_notes) >= 2:
+            visual_lead = f"{visual_notes[0]}, and {visual_notes[1]}"
+        else:
+            visual_lead = visual_notes[0]
+        issue_clause = (
+            f"I pulled up {company_name}'s site on my phone and a couple things "
+            f"jumped out — {visual_lead}. Little things, but they're exactly what "
+            f"makes {how_found} bounce instead of call.")
+    else:
+        issue_clause = _issue_clause(signals, company_name, noun, how_found)
     seed = (company_name or "") + (city or "")
     has_name = bool(contact_name and contact_name.strip())
     greeting = f"Hi {fn},\n\n" if has_name else ""

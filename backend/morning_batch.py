@@ -17,6 +17,7 @@ Scheduled:      run_morning.ps1 (registered via Windows Task Scheduler at 9 AM)
 from __future__ import annotations
 
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -31,6 +32,7 @@ import verify_email
 import followups
 import owner_name
 import screenshots
+import vision_audit
 
 
 def _log(run_log: list[str], msg: str):
@@ -104,6 +106,7 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
     db.refresh(run)
 
     queued = skipped_existing = skipped_lowopp = skipped_lang = errors = drafted = 0
+    skipped_modern = 0
     try:
         max_analyze = getattr(config, "AUTOPILOT_MAX_ANALYZE", 150)
         targets, source = web_targets.load_targets(limit=max_analyze)
@@ -167,18 +170,58 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
                     "likelihood": _reply_likelihood(signals, email, t.get("category", "generic"), t),
                 })
 
-        # ── Rank: keep the best `count`, most-likely-to-reply first ──────────
+        # ── Rank most-likely-to-reply first ─────────────────────────────────
         candidates.sort(key=lambda c: c["likelihood"], reverse=True)
-        selected = candidates[:count]
-        _log(run_log, f"{len(candidates)} good candidates -> keeping top {len(selected)} by reply-likelihood")
+
+        vision_on = bool(getattr(config, "OPENAI_API_KEY", "")) and getattr(config, "VISION_ENABLED", True)
+        # When the vision gate is on, screenshot a BIGGER pool than `count`: the
+        # gate drops sites that actually look modern (the heuristic scorer
+        # over-flags them), so we need extra candidates to refill to `count`
+        # genuinely-bad-looking prospects.
+        pool_n = min(len(candidates),
+                     getattr(config, "VISION_GATE_POOL", 90) if vision_on else count)
+        gate_pool = candidates[:pool_n]
+        _log(run_log, f"{len(candidates)} good candidates -> "
+                      f"{'vision-gating top ' + str(pool_n) if vision_on else 'keeping top ' + str(len(gate_pool))} "
+                      f"(target {count} drafts)")
 
         gmail_on = getattr(config, "GMAIL_ENABLED", True) and gmail_drafts.is_configured()
         _log(run_log, "Gmail drafts: ON (real drafts in your inbox)" if gmail_on
              else "Gmail drafts: off (queueing with one-click compose links)")
         settings = web_profile(load_settings())
 
-        # ── Phase 2: write copy, create Gmail draft, persist ─────────────────
-        for c in selected:
+        # ── Phase 1.5: screenshot the pool FIRST (feeds the vision gate/opener
+        #    and the contact sheet — one capture, several uses) ───────────────
+        shots_by_job: dict[str, str] = {}
+        contact_sheet = None
+        shot_items = []
+        if getattr(config, "SCREENSHOTS_ENABLED", True):
+            for c in gate_pool:
+                host = website_signals.clean_host(c["t"].get("domain", ""))
+                url = (f"https://{host}" if host and c["signals"].get("reachable") else "")
+                shot_items.append({"job_id": c["job_id"], "company": c["t"]["company_name"],
+                                   "url": url, "issues": c["signals"].get("headline_issues", [])})
+            try:
+                contact_sheet, shot_dir = screenshots.capture(
+                    shot_items, max_shots=getattr(config, "VISION_GATE_POOL", 90),
+                    log=lambda m: _log(run_log, m))
+                if shot_dir:
+                    for it in shot_items:
+                        mob = (it.get("shots") or {}).get("mobile")
+                        if mob:
+                            shots_by_job[it["job_id"]] = os.path.join(shot_dir, mob)
+            except Exception as e:
+                _log(run_log, f"Screenshots failed (non-fatal): {e}")
+
+        if vision_on:
+            _log(run_log, f"Visual gate: ON ({getattr(config, 'VISION_MODEL', 'gpt-4o-mini')}) "
+                          f"— drops sites that look modern, sharpens openers on dated ones")
+        vision_used = 0
+
+        # ── Phase 2: gate on looks, write copy, create Gmail draft, persist ──
+        for c in gate_pool:
+            if queued >= count:
+                break  # hit the daily target of genuinely-bad-site drafts
             t, signals, email = c["t"], c["signals"], c["email"]
             company = t["company_name"]
             category = t.get("category", "generic")
@@ -190,9 +233,36 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
                 contact = owner_name.find(company, t.get("domain", "")) or ""
             except Exception:
                 contact = ""
+            # Visual gate: real eyes on the screenshot. 'modern' -> drop the lead
+            # (the heuristic over-flagged a good site); 'dated' -> use the visible
+            # flaws as the opener (replaces the weak "you're on Wix" guess).
+            visual_notes = []
+            if vision_on and shots_by_job.get(c["job_id"]):
+                try:
+                    a = vision_audit.assess(shots_by_job[c["job_id"]])
+                    if a["verdict"] == "modern":
+                        skipped_modern += 1
+                        # Persist a rejected marker so dedup skips it next run
+                        # (don't re-screenshot a known-good site every day).
+                        db.add(Lead(
+                            source="website_autopilot", job_id=c["job_id"],
+                            company_name=company,
+                            company_domain=website_signals.clean_host(t.get("domain", "")),
+                            job_location=city, niche="web_design", niche_label="Website",
+                            pain_category="website", automation_score=c["opportunity"],
+                            score_reasoning="site looks modern on visual gate — skipped",
+                            status="rejected"))
+                        db.commit()
+                        existing_ids.add(c["job_id"])
+                        continue
+                    visual_notes = a["problems"]
+                    if visual_notes:
+                        vision_used += 1
+                except Exception:
+                    visual_notes = []
             suite = web_offer.generate_website_suite(
                 company_name=company, city=city, category=category,
-                contact_name=contact, signals=signals,
+                contact_name=contact, signals=signals, visual_notes=visual_notes,
             )
             noun = web_offer._ctx(category)[0]
             issues = signals.get("headline_issues", [])
@@ -273,21 +343,12 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
         except Exception as e:
             _log(run_log, f"Follow-ups failed (non-fatal): {e}")
 
-        # ── Phase 4: screenshots of the selected sites (the "See" stage) ────────
-        if getattr(config, "SCREENSHOTS_ENABLED", True):
-            try:
-                shots = [{"company": c["t"]["company_name"],
-                          "url": (f"https://{website_signals.clean_host(c['t'].get('domain',''))}"
-                                  if c["t"].get("domain") and c["signals"].get("reachable") else ""),
-                          "issues": c["signals"].get("headline_issues", [])}
-                         for c in selected]
-                sheet = screenshots.capture(
-                    shots, max_shots=getattr(config, "SCREENSHOTS_MAX", 40),
-                    log=lambda m: _log(run_log, m))
-                if sheet:
-                    _log(run_log, f"Visual grading sheet ready: {sheet}")
-            except Exception as e:
-                _log(run_log, f"Screenshots failed (non-fatal): {e}")
+        # ── Screenshots + vision were done in Phase 1.5; just surface results ──
+        if contact_sheet:
+            _log(run_log, f"Visual grading sheet ready: {contact_sheet}")
+        if vision_on:
+            _log(run_log, f"Visual gate: dropped {skipped_modern} modern-looking sites, "
+                          f"sharpened {vision_used} openers from real screenshots")
 
         run.leads_scored = len(targets)
         run.leads_passed = len(candidates)
@@ -300,11 +361,12 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
 
         _log(run_log, f"Done. {queued} leads {landing_status} | {drafted} Gmail drafts | "
                       f"{skipped_existing} already had | {skipped_lowopp} sites fine | "
-                      f"{skipped_lang} non-English | {errors} errors")
+                      f"{skipped_modern} modern (visual gate) | {skipped_lang} non-English | "
+                      f"{errors} errors")
         return {
             "ok": True, "queued": queued, "drafted": drafted, "status": landing_status,
             "skipped_existing": skipped_existing, "skipped_lowopp": skipped_lowopp,
-            "skipped_lang": skipped_lang,
+            "skipped_modern": skipped_modern, "skipped_lang": skipped_lang,
             "errors": errors, "source": source, "run_id": run.id,
         }
     except Exception as e:
