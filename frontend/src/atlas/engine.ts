@@ -167,9 +167,9 @@ export class AtlasEngine {
     c.beginPath(); path(feature(t as never, t.objects.nation as never) as never)
     c.fillStyle = '#0a0a0c'; c.fill()
     c.beginPath(); path(mesh(t as never, t.objects.states as never, ((a: unknown, b: unknown) => a !== b) as never) as never)
-    c.strokeStyle = '#161619'; c.lineWidth = 0.7 / this.s; c.stroke()
+    c.strokeStyle = '#1a1a1f'; c.lineWidth = 0.7 / this.s; c.stroke()
     c.beginPath(); path(feature(t as never, t.objects.nation as never) as never)
-    c.strokeStyle = '#222228'; c.lineWidth = 1 / this.s; c.stroke()
+    c.strokeStyle = '#2b2b33'; c.lineWidth = 1.1 / this.s; c.stroke()
     this.staticLayer = layer
   }
 
@@ -242,8 +242,8 @@ export class AtlasEngine {
         continue
       }
       // discovered (or declined — history stays, barely there)
-      ctx.fillStyle = p.rejected ? 'rgba(106,106,115,0.13)' : `rgba(106,106,115,${0.42 * born})`
-      ctx.beginPath(); ctx.arc(px, py, 1.7 * born, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = p.rejected ? 'rgba(116,116,126,0.15)' : `rgba(138,138,148,${0.6 * born})`
+      ctx.beginPath(); ctx.arc(px, py, 2.1 * born, 0, Math.PI * 2); ctx.fill()
     }
 
     // HQ — where every line begins
@@ -279,10 +279,11 @@ export class AtlasEngine {
     const mx = (x0 + x1) / 2, my = (y0 + y1) / 2
     const dx = x1 - x0, dy = y1 - y0
     const d = Math.hypot(dx, dy) || 1
-    // perpendicular lift, always arcing upward
+    // perpendicular lift, always arcing upward; per-business variance feathers
+    // the bundle apart so 34 sends read as 34 strands, not one rope
     let nx = -dy / d, ny = dx / d
     if (ny > 0) { nx = -nx; ny = -ny }
-    const lift = Math.min(d * 0.16, 60)
+    const lift = Math.min(d * (0.10 + p.breath * 0.14), 78)
     const cx = mx + nx * lift, cy = my + ny * lift
     const hot = (!!p.tReplied || p.won)
     ctx.strokeStyle = p.won

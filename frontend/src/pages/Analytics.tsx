@@ -51,22 +51,8 @@ export default function Analytics() {
       <div className="p-6 flex flex-col gap-6">
         {/* Pipeline value — the headline numbers */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-surface border border-green/20 rounded-lg p-4 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted">Weighted Pipeline</span>
-              <DollarSign size={13} className="text-green" />
-            </div>
-            <div className="text-3xl font-semibold font-mono text-green">{money(data.pipeline.weighted)}</div>
-            <div className="text-2xs text-dim">Expected value, probability-weighted by stage</div>
-          </div>
-          <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted">Total Potential</span>
-              <Target size={13} className="text-dim" />
-            </div>
-            <div className="text-3xl font-semibold font-mono text-primary">{money(data.pipeline.total_potential)}</div>
-            <div className="text-2xs text-dim">First-year value if every active lead closed</div>
-          </div>
+          {/* the only headline number is a REAL one; dollars here are estimates
+              and must say so — earned money lives on the Field, not in analytics */}
           <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted">Active Leads</span>
@@ -76,6 +62,22 @@ export default function Analytics() {
               {Object.values(data.funnel).reduce((a, b) => a + b, 0)}
             </div>
             <div className="text-2xs text-dim">In the funnel right now</div>
+          </div>
+          <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted">Weighted Pipeline · estimate</span>
+              <DollarSign size={13} className="text-dim" />
+            </div>
+            <div className="text-3xl font-semibold font-mono text-muted">{money(data.pipeline.weighted)}</div>
+            <div className="text-2xs text-dim">Projection, probability-weighted by stage — not earned money</div>
+          </div>
+          <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted">Total Potential · estimate</span>
+              <Target size={13} className="text-dim" />
+            </div>
+            <div className="text-3xl font-semibold font-mono text-muted">{money(data.pipeline.total_potential)}</div>
+            <div className="text-2xs text-dim">Projection if every active lead closed — not earned money</div>
           </div>
         </div>
 
@@ -93,9 +95,14 @@ export default function Analytics() {
                   <div className="flex-1 h-5 bg-s3 rounded overflow-hidden relative">
                     <div
                       className="h-full rounded transition-all flex items-center px-2"
-                      style={{ width: `${Math.max(3, (count / maxFunnel) * 100)}%`, background: s.color, opacity: 0.75 }}
+                      style={{
+                        width: `${Math.max(3, (count / maxFunnel) * 100)}%`,
+                        // red is earned by real activity — an empty stage stays gray
+                        background: count > 0 ? s.color : '#3c3c44',
+                        opacity: 0.75,
+                      }}
                     >
-                      <span className="text-2xs font-mono text-white font-medium">{count}</span>
+                      <span className={`text-2xs font-mono font-medium ${count > 0 && (s.key === 'sent' || s.key === 'approved') ? 'text-bg' : 'text-primary'}`}>{count}</span>
                     </div>
                   </div>
                   <span className="text-2xs text-dim font-mono w-16 text-right">
@@ -109,7 +116,7 @@ export default function Analytics() {
 
         {/* Niche performance */}
         <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-xs text-muted mb-4">Pipeline Value by Niche</div>
+          <div className="text-xs text-muted mb-4">Estimated Value by Niche · projections, not earned</div>
           <div className="flex flex-col gap-2.5">
             {data.by_niche.map((n) => (
               <div key={n.niche} className="flex items-center gap-3">

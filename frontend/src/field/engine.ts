@@ -40,8 +40,9 @@ attribute vec3 aPos; attribute vec3 aCen; attribute float aStage;
 attribute float aRand; attribute float aCore; attribute float aSize;
 attribute float aAct;
 uniform mat4 uVP; uniform float uTime; uniform float uFocus; uniform float uFocusMix;
-uniform float uPulse[6]; uniform float uDpr;
+uniform float uPulse[6]; uniform float uDpr; uniform float uBloom;
 varying float vA; varying float vStage; varying float vCore; varying float vPulse;
+varying float vBloom;
 void main(){
   vec3 p = aPos;
   float drift = 0.14;
@@ -56,24 +57,28 @@ void main(){
   float focused = 1.0-uFocusMix*step(0.5, abs(aStage-uFocus));
   float act = aAct*(0.5+0.5*sin(uTime*2.2+aRand*6.28));
   float won = step(4.5, aStage);
-  float base = mix(1.5, 3.2+2.6*aSize, aCore) + pl*3.0 + act*0.9 + won*2.4;
-  gl_PointSize = base*uDpr*(9.0/max(mv.w,0.4));
-  vA = (mix(0.20, 0.55+0.4*aSize, aCore)) * focused;
-  vStage = aStage; vCore = aCore;
+  float base = mix(1.7, 3.8+3.0*aSize, aCore) + pl*3.0 + act*1.1 + won*2.6;
+  base *= mix(1.0, 5.5, uBloom);
+  gl_PointSize = base*uDpr*(10.5/max(mv.w,0.4));
+  vA = (mix(0.26, 0.62+0.33*aSize, aCore)) * focused * mix(1.0, 0.10, uBloom);
+  // dust never wears red — only a real business that answered may
+  vStage = mix(min(aStage, 2.0), aStage, aCore); vCore = aCore; vBloom = uBloom;
 }`
 
 const FRAG = `
 precision mediump float;
 varying float vA; varying float vStage; varying float vCore; varying float vPulse;
+varying float vBloom;
 void main(){
   vec2 d = gl_PointCoord-0.5; float r = length(d);
   if(r>0.5) discard;
   float won = step(4.5, vStage);
-  // won nodes carry a permanent soft halo; everything else stays crisp
-  float fall = mix(0.02, 0.30, won);
-  float a = smoothstep(0.5, fall, r)*vA;
+  // won nodes carry a permanent soft halo; the bloom pass is all halo
+  // (edge order matters: reversed-edge smoothstep is undefined on some drivers)
+  float fall = mix(mix(0.02, 0.30, won), 0.0, vBloom);
+  float a = (1.0 - smoothstep(fall, 0.5, r))*vA;
   // monochrome until the business answers — then, and only then, red
-  vec3 early = vec3(0.55, 0.57, 0.63);
+  vec3 early = vec3(0.63, 0.65, 0.72);
   vec3 sent  = vec3(0.93, 0.93, 0.96);
   vec3 red   = vec3(0.898, 0.282, 0.302);
   vec3 redHi = vec3(1.0, 0.52, 0.50);
@@ -119,7 +124,7 @@ export class FieldEngine {
   private t0 = performance.now()
   private vp: number[] | null = null
   private pulses = [0, 0, 0, 0, 0, 0]
-  private cam = { az: 0.5, el: 0.16, r: 19, azT: 0.5, elT: 0.16, rT: 19, cx: 0, cy: 0, cz: 0, cxT: 0, cyT: 0, czT: 0 }
+  private cam = { az: 0.5, el: 0.16, r: 15.5, azT: 0.5, elT: 0.16, rT: 15.5, cx: 0, cy: 0, cz: 0, cxT: 0, cyT: 0, czT: 0 }
   private mouseAz = 0
   nodes: FieldNode[] = []
   focus = -1
@@ -170,9 +175,12 @@ export class FieldEngine {
 
   destroy() {
     cancelAnimationFrame(this.raf)
+    this.raf = 0
     window.removeEventListener('resize', this.resizeBound)
     document.removeEventListener('visibilitychange', this.visHandler)
-    this.gl?.getExtension('WEBGL_lose_context')?.loseContext()
+    // NEVER loseContext() here: React StrictMode re-runs effects on the same
+    // canvas, and a deliberately-lost context leaves the remounted engine dead
+    // (Chrome composites the lost alpha:false canvas as solid white).
     this.gl = null
   }
 
@@ -200,11 +208,14 @@ export class FieldEngine {
       size.push(Math.max(0.25, Math.min(1, (lead.automation_score || 40) / 100)))
       act.push(last && last > dayAgo ? 1 : 0)
     }
-    // ambient dust — atmosphere only, density from real counts, never from money
+    // ambient dust — atmosphere only, density from real counts, never from
+    // money. An empty stage gets NO dust: a place nothing has reached yet is
+    // honestly dark, not decorated.
     for (let s = 0; s < 6; s++) {
+      if (!counts[s]) continue
       const c = CENTROIDS[s]
       const spread = (0.7 + Math.min(counts[s], 80) * 0.02) * 1.7
-      const dust = Math.min(40 + counts[s] * 12, 420) | 0
+      const dust = Math.min(110 + counts[s] * 15, 560) | 0
       for (let j = 0; j < dust; j++) {
         const seed = s * 100000 + j * 7 + 11
         pos.push(c[0] + g(seed, spread) * 1.6, c[1] + g(seed * 3 + 1, spread), c[2] + g(seed * 5 + 2, spread) * 1.6)
@@ -240,10 +251,10 @@ export class FieldEngine {
     if (i >= 0) {
       const c = CENTROIDS[i]
       cam.cxT = c[0] * 0.55; cam.cyT = c[1] * 0.6; cam.czT = c[2] * 0.55
-      cam.rT = 13.5; cam.elT = 0.24
+      cam.rT = 12.5; cam.elT = 0.24
       cam.azT = Math.atan2(c[2], c[0]) + 1.4
     } else {
-      cam.cxT = 0; cam.cyT = 0; cam.czT = 0; cam.rT = 19; cam.elT = 0.16
+      cam.cxT = 0; cam.cyT = 0; cam.czT = 0; cam.rT = 15.5; cam.elT = 0.16
     }
   }
   lockFocus(i: number) { this.locked = this.locked === i ? -1 : i }
@@ -281,7 +292,7 @@ export class FieldEngine {
     ]
     this.vp = mul(proj, lookAt(eye, [cam.cx, cam.cy, cam.cz], [0, 1, 0]))
 
-    gl.clearColor(0.024, 0.024, 0.028, 1)
+    gl.clearColor(0.03, 0.03, 0.035, 1)
     gl.clear(gl.COLOR_BUFFER_BIT)
     gl.useProgram(prog)
     gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'uVP'), false, new Float32Array(this.vp))
@@ -290,7 +301,14 @@ export class FieldEngine {
     gl.uniform1f(gl.getUniformLocation(prog, 'uFocusMix'), this.focus < 0 ? 0.0 : 0.72)
     gl.uniform1f(gl.getUniformLocation(prog, 'uDpr'), Math.min(window.devicePixelRatio || 1, 2))
     gl.uniform1fv(gl.getUniformLocation(prog, 'uPulse[0]'), new Float32Array(this.pulses))
-    if (this.n > 0) gl.drawArrays(gl.POINTS, 0, this.n)
+    if (this.n > 0) {
+      // pass 1: soft atmosphere (same buffers, big faint sprites = cheap bloom)
+      gl.uniform1f(gl.getUniformLocation(prog, 'uBloom'), 1)
+      gl.drawArrays(gl.POINTS, 0, this.n)
+      // pass 2: the businesses themselves, crisp
+      gl.uniform1f(gl.getUniformLocation(prog, 'uBloom'), 0)
+      gl.drawArrays(gl.POINTS, 0, this.n)
+    }
     this.onFrame?.()
   }
 }

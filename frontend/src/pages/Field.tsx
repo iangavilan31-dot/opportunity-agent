@@ -163,14 +163,14 @@ export default function Field() {
         style={{ background: 'radial-gradient(120% 90% at 50% 42%, transparent 40%, rgba(0,0,0,.55) 100%)' }}
       />
 
-      {/* cluster labels */}
+      {/* cluster labels — empty stages stay silent until asked about */}
       {STAGES.map((s, i) => (
         <div
           key={s.key}
           ref={(el) => { labelRefs.current[i] = el }}
-          className={`absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap pointer-events-none transition-colors duration-300 text-[10.5px] font-bold uppercase tracking-[0.16em] ${
-            focus === i ? (i >= 3 ? 'text-red' : 'text-primary') : 'text-muted opacity-50'
-          }`}
+          className={`absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap pointer-events-none transition-all duration-300 text-[10.5px] font-bold uppercase tracking-[0.16em] ${
+            sum.counts[i] === 0 && focus !== i ? '!opacity-0' : ''
+          } ${focus === i ? (i >= 3 ? 'text-red' : 'text-primary') : 'text-muted opacity-50'}`}
           style={{ textShadow: '0 1px 8px #000' }}
         >
           {s.name}

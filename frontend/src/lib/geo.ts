@@ -83,7 +83,7 @@ export function projectLeads(leads: Lead[]): { points: MapPoint[]; unmapped: Lea
     if (!projected) { unmapped.push(lead); continue }
     // deterministic constellation offset, ~city-radius in map units
     const a = hash(lead.id) * Math.PI * 2
-    const r = 2.2 + hash(lead.id * 7 + 1) * 6.5
+    const r = 3 + hash(lead.id * 7 + 1) * 10.5
     points.push({
       lead,
       x: projected[0] + Math.cos(a) * r,

@@ -33,10 +33,14 @@ export function stageOf(lead: Lead): number {
   }
 }
 
-/** '2026-07-09 13:05:11.326829' → epoch ms (null-safe). */
+/** '2026-07-09 13:05:11.326829' → epoch ms. DB timestamps are UTC (backend
+ * writes datetime.now(timezone.utc)) but are serialized without an offset —
+ * parsing them as local silently shifts every event by the TZ offset. */
 export function ts(s: string | null | undefined): number | null {
   if (!s) return null
-  const t = new Date(s.replace(' ', 'T')).getTime()
+  const iso = s.replace(' ', 'T')
+  const hasTz = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(iso)
+  const t = new Date(hasTz ? iso : iso + 'Z').getTime()
   return Number.isFinite(t) ? t : null
 }
 
