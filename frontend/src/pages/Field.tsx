@@ -40,8 +40,8 @@ export default function Field() {
     const ok = engine.init()
     if (!ok) return () => engine.destroy()
     engine.onFrame = () => {
-      // cluster labels follow their centroids
-      for (let i = 0; i < 6; i++) {
+      // cluster labels follow their centroids (7th = Declined)
+      for (let i = 0; i < 7; i++) {
         const el = labelRefs.current[i]
         if (!el) continue
         const p = engine.project(CENTROIDS[i])
@@ -95,7 +95,7 @@ export default function Field() {
     }
     if (engine.lockedFocus >= 0) return
     let bc = -1, bcd = 110
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
       const p = engine.project(CENTROIDS[i])
       if (!p) continue
       const d = Math.hypot(p.x - mx, p.y - my)
@@ -146,8 +146,10 @@ export default function Field() {
     return { ey: 'Drafts ready', big: String(sum.counts[0] + sum.counts[1]), hot: false }
   }, [sum])
 
+  const focusName = focus === 6 ? 'Declined' : focus >= 0 ? STAGES[focus].name : ''
+  const focusCount = focus === 6 ? sum.declined : focus >= 0 ? sum.counts[focus] : 0
   const focusInfo = focus >= 0
-    ? { ey: STAGES[focus].name, big: String(sum.counts[focus]), hot: focus >= 3 && sum.counts[focus] > 0 }
+    ? { ey: focusName, big: String(focusCount), hot: focus >= 3 && focus <= 5 && focusCount > 0 }
     : milestone
 
   return (
@@ -164,17 +166,20 @@ export default function Field() {
       />
 
       {/* cluster labels — empty stages stay silent until asked about */}
-      {STAGES.map((s, i) => (
+      {[...STAGES.map((s, i) => ({ name: s.name, count: sum.counts[i], i })), { name: 'Declined', count: sum.declined, i: 6 }].map(({ name, count, i }) => (
         <div
-          key={s.key}
+          key={name}
           ref={(el) => { labelRefs.current[i] = el }}
           className={`absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap pointer-events-none transition-all duration-300 text-[10.5px] font-bold uppercase tracking-[0.16em] ${
-            sum.counts[i] === 0 && focus !== i ? '!opacity-0' : ''
-          } ${focus === i ? (i >= 3 ? 'text-red' : 'text-primary') : 'text-muted opacity-50'}`}
+            // during focus the camera dives into the cloud and other centroids
+            // can project ONTO the focused cluster's dots — only the focused
+            // label may speak, or labels visually attach to the wrong dots
+            (count === 0 || (focus >= 0 && focus !== i)) ? '!opacity-0' : ''
+          } ${focus === i ? (i >= 3 && i <= 5 ? 'text-red' : 'text-primary') : i === 6 ? 'text-dim opacity-80' : 'text-muted opacity-90'}`}
           style={{ textShadow: '0 1px 8px #000' }}
         >
-          {s.name}
-          <i className={`not-italic ml-1.5 num ${focus === i ? 'text-primary' : 'text-dim'}`}>{sum.counts[i]}</i>
+          {name}
+          <i className={`not-italic ml-1.5 num ${focus === i ? 'text-primary' : 'text-dim'}`}>{count}</i>
         </div>
       ))}
 
@@ -234,7 +239,7 @@ export default function Field() {
         </div>
         <div className="mt-4 text-[14px] font-medium text-muted max-w-[40ch] leading-relaxed min-h-[21px]">
           {focus >= 0
-            ? `${sum.counts[focus]} ${sum.counts[focus] === 1 ? 'business' : 'businesses'} in ${STAGES[focus].name} right now.`
+            ? `${focusCount} ${focusCount === 1 ? 'business' : 'businesses'} in ${focusName} right now.`
             : `${sum.discovered} real businesses discovered · ${sum.declined} declined · ${money(sum.earned)} earned. Every point is one real company.`}
         </div>
       </div>
@@ -252,16 +257,26 @@ export default function Field() {
             onClick={(e) => { e.stopPropagation(); engineRef.current?.lockFocus(i) }}
           >
             <span className={`text-[11.5px] font-semibold tracking-[0.14em] uppercase ${
-              focus === i ? (i >= 3 && sum.counts[i] > 0 ? 'text-red' : 'text-primary') : 'text-muted'
+              focus === i ? (i >= 3 && i <= 5 && sum.counts[i] > 0 ? 'text-red' : 'text-primary') : 'text-muted'
             }`}>
               {s.name}
             </span>
             <span className="text-[19px] font-extrabold num text-primary min-w-[2ch]">{sum.counts[i]}</span>
           </div>
         ))}
-        <div className="grid grid-cols-[1fr_auto] items-baseline gap-4 pt-3 mt-1 border-t border-border-subtle opacity-70">
-          <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted">Declined</span>
+        <div
+          className={`grid grid-cols-[1fr_auto] items-baseline gap-4 pt-3 mt-1 border-t border-border-subtle cursor-pointer transition-opacity ${focus === 6 ? 'opacity-100' : 'opacity-75 hover:opacity-100'}`}
+          onMouseEnter={() => applyFocus(6)}
+          onMouseLeave={() => { if ((engineRef.current?.lockedFocus ?? -1) < 0) applyFocus(-1) }}
+          onClick={(e) => { e.stopPropagation(); engineRef.current?.lockFocus(6) }}
+        >
+          <span className={`text-[10.5px] font-semibold tracking-[0.14em] uppercase ${focus === 6 ? 'text-primary' : 'text-muted'}`}>Declined</span>
           <span className="text-[13px] font-bold num text-muted">{sum.declined}</span>
+        </div>
+        {/* the encoding, stated on the screen it governs */}
+        <div className="mt-4 text-right text-[10px] text-dim leading-relaxed pointer-events-none">
+          size = opportunity score · glow = real business<br />
+          red = only when a business answers
         </div>
       </div>
 

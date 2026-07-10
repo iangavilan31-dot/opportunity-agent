@@ -54,7 +54,7 @@ await shot('01-field')
 await fps('field')
 
 // hover the Sent ledger row — real mouse, real hit-testing
-const sentRow = page.locator('span:text-is("Sent")').first()
+const sentRow = page.locator('span:text-is("Reached")').first()
 await sentRow.hover({ timeout: 5000 }).catch((e) => report.notes.push('ledger hover failed: ' + e.message))
 await sleep(1400)
 await shot('02-field-focus-sent')

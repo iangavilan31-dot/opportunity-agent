@@ -39,7 +39,7 @@ export default function Analytics() {
       <div className="p-6 flex flex-col gap-6">
         {/* the only headline numbers are REAL ones; dollars are labeled estimates */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
+          <div className="pt-4 border-t border-border-subtle flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted">Active Businesses</span>
               <TrendingUp size={13} className="text-dim" />
@@ -47,7 +47,7 @@ export default function Analytics() {
             <div className="text-3xl font-semibold num text-primary">{sum.active}</div>
             <div className="text-2xs text-muted">{sum.discovered} discovered · {sum.declined} declined</div>
           </div>
-          <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
+          <div className="pt-4 border-t border-border-subtle flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted">Reached</span>
               <Send size={13} className="text-dim" />
@@ -57,19 +57,20 @@ export default function Analytics() {
               {sum.cumulative.replied} replied · {sum.cumulative.meeting} meetings · {sum.cumulative.won} won
             </div>
           </div>
-          <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
+          <div className="pt-4 border-t border-border-subtle flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted">Potential · estimate</span>
               <DollarSign size={13} className="text-dim" />
             </div>
-            <div className="text-3xl font-semibold num text-muted">{money(extra.estPotential)}</div>
+            {/* projections never outrank real numbers on this screen */}
+            <div className="text-xl font-semibold num text-muted">{money(extra.estPotential)}</div>
             <div className="text-2xs text-muted">Projection if every active lead closed — not earned money</div>
           </div>
         </div>
 
         {/* Funnel — live stage populations, plainly. No invented conversion math. */}
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-xs text-muted mb-4">Funnel — where every business stands right now</div>
+        <div className="pt-5 border-t border-border-subtle">
+          <div className="eyebrow !text-[10px] mb-4">Funnel — where every business stands right now</div>
           <div className="flex flex-col gap-2.5">
             {STAGES.map((s, i) => {
               const count = sum.counts[i]
@@ -94,10 +95,20 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* Estimated value by niche */}
-        {extra.nicheRows.length > 0 && (
-          <div className="bg-surface border border-border rounded-lg p-4">
-            <div className="text-xs text-muted mb-4">Estimated Value by Niche · projections, not earned</div>
+        {/* Estimated value by niche — a chart only when there is a comparison to make */}
+        {extra.nicheRows.length === 1 && (
+          <div className="pt-5 border-t border-border-subtle">
+            <div className="eyebrow !text-[10px] mb-2">Estimated Value by Niche · projection, not earned</div>
+            <div className="text-sm text-primary">
+              {extra.nicheRows[0].label} — <span className="num">{money(extra.nicheRows[0].estValue)}</span>
+              <span className="text-muted"> across {extra.nicheRows[0].count} leads · avg score {extra.nicheRows[0].avgScore}</span>
+            </div>
+            <div className="text-2xs text-dim mt-1.5">One niche so far — a comparison chart appears when a second niche exists.</div>
+          </div>
+        )}
+        {extra.nicheRows.length > 1 && (
+          <div className="pt-5 border-t border-border-subtle">
+            <div className="eyebrow !text-[10px] mb-4">Estimated Value by Niche · projections, not earned</div>
             <div className="flex flex-col gap-2">
               {extra.nicheRows.map((n) => (
                 <div key={n.niche} className="flex items-center gap-3">
@@ -109,7 +120,7 @@ export default function Analytics() {
                     />
                   </div>
                   <span className="text-xs text-muted num w-14 text-right">{money(n.estValue)}</span>
-                  <span className="text-2xs text-muted num w-12 text-right whitespace-nowrap">{n.count} ld</span>
+                  <span className="text-2xs text-muted num w-16 text-right whitespace-nowrap">{n.count} leads</span>
                   <span className="text-2xs text-muted num w-16 text-right whitespace-nowrap">avg {n.avgScore}</span>
                 </div>
               ))}
@@ -119,11 +130,11 @@ export default function Analytics() {
 
         <div className="grid grid-cols-2 gap-3">
           {/* Quality distribution — equal-width score bands */}
-          <div className="bg-surface border border-border rounded-lg p-4">
-            <div className="text-xs text-muted mb-4">Opportunity Score Distribution</div>
+          <div className="pt-5 border-t border-border-subtle">
+            <div className="eyebrow !text-[10px] mb-4">Opportunity Score Distribution</div>
             <div className="flex items-end gap-2 h-28">
               {extra.bins.map((count, i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5 flex-1 h-full justify-end">
+                <div key={i} className="flex flex-col items-center gap-1.5 flex-1 h-full justify-end" style={{ maxWidth: 72 }}>
                   <span className="text-2xs num text-muted">{count}</span>
                   <div
                     className="w-full rounded-sm bg-primary/60 transition-all"
@@ -135,19 +146,27 @@ export default function Analytics() {
             </div>
           </div>
 
-          {/* Sends by day — real events only */}
-          <div className="bg-surface border border-border rounded-lg p-4">
-            <div className="text-xs text-muted mb-4">Emails Sent by Day</div>
+          {/* Sends by day — real events only; a single day is a fact, not a chart */}
+          <div className="pt-5 border-t border-border-subtle">
+            <div className="eyebrow !text-[10px] mb-4">Emails Sent by Day</div>
             {extra.sendsByDay.length === 0 ? (
               <div className="text-muted text-xs py-6 text-center">No sends yet</div>
+            ) : extra.sendsByDay.length === 1 ? (
+              <div className="py-4">
+                <div className="text-sm text-primary">
+                  <span className="num font-semibold">{extra.sendsByDay[0][1]}</span> emails sent — all on{' '}
+                  {new Date(extra.sendsByDay[0][0] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+                <div className="text-2xs text-dim mt-1.5">The daily chart appears once a second sending day exists.</div>
+              </div>
             ) : (
-              <div className="flex items-end gap-2 h-28">
+              <div className="flex items-end gap-2 h-28 border-b border-border-subtle pb-px">
                 {extra.sendsByDay.slice(-14).map(([day, count]) => (
-                  <div key={day} className="flex flex-col items-center gap-1.5 flex-1 h-full justify-end">
+                  <div key={day} className="flex flex-col items-center gap-1.5 flex-1 h-full justify-end" style={{ maxWidth: 72 }}>
                     <span className="text-2xs num text-muted">{count}</span>
                     <div
                       className="w-full rounded-sm bg-primary/60 transition-all"
-                      style={{ height: `${Math.max(3, (count / maxDay) * 72)}px` }}
+                      style={{ height: `${Math.max(3, (count / maxDay) * 68)}px` }}
                     />
                     <span className="text-2xs text-muted whitespace-nowrap">{day.slice(5)}</span>
                   </div>

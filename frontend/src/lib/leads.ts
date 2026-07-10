@@ -7,10 +7,11 @@ import { api } from '../api'
 // shown as money — the only dollars rendered are deals actually closed.
 export const REAL_SOURCE = 'website_autopilot'
 
+// One canonical word per stage, used verbatim on every surface.
 export const STAGES = [
   { key: 'queued', name: 'Queued' },
   { key: 'approved', name: 'Approved' },
-  { key: 'sent', name: 'Sent' },
+  { key: 'sent', name: 'Reached' },
   { key: 'replied', name: 'Replied' },
   { key: 'meeting', name: 'Meeting' },
   { key: 'won', name: 'Won' },
@@ -106,7 +107,8 @@ export function analyze(leads: Lead[]) {
     estPotential += est
     if (l.job_location) cities.add(l.job_location.trim().toLowerCase())
     const s = l.automation_score || 0
-    bins[s >= 90 ? 0 : s >= 80 ? 1 : s >= 70 ? 2 : s >= 60 ? 3 : 4]++
+    // ascending, equal-width decades; the catch-all is labeled as an aggregate
+    bins[s < 60 ? 0 : s < 70 ? 1 : s < 80 ? 2 : s < 90 ? 3 : 4]++
     const sent = ts(l.sent_at)
     if (sent) {
       const day = new Date(sent).toISOString().slice(0, 10)
@@ -120,7 +122,7 @@ export function analyze(leads: Lead[]) {
     nicheRows,
     cityCount: cities.size,
     bins,
-    binLabels: ['90+', '80s', '70s', '60s', '<60'],
+    binLabels: ['<60 · agg', '60s', '70s', '80s', '90+'],
     sendsByDay: [...sendsByDay.entries()].sort(([a], [b]) => a.localeCompare(b)),
     estPotential,
   }

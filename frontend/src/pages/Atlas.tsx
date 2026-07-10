@@ -3,7 +3,7 @@ import { Play, Pause } from 'lucide-react'
 import statesUrl from 'us-atlas/states-albers-10m.json?url'
 import { AtlasEngine, type AtlasHover } from '../atlas/engine'
 import { projectLeads, HQ } from '../lib/geo'
-import { useRealLeads } from '../lib/leads'
+import { useRealLeads, ts as tsOf } from '../lib/leads'
 
 const PLAY_SECONDS = 22
 
@@ -123,11 +123,15 @@ export default function Atlas() {
         </div>
       </div>
 
-      {/* HQ label */}
+      {/* HQ label — flips to the left when the point sits near the right edge */}
       {hqScreen && (
         <div
-          className="absolute pointer-events-none eyebrow !text-[9.5px] !text-dim"
-          style={{ left: hqScreen[0] + 12, top: hqScreen[1] - 6 }}
+          className="absolute pointer-events-none eyebrow !text-[9.5px] !text-muted whitespace-nowrap"
+          style={
+            hqScreen[0] > window.innerWidth - 320
+              ? { left: hqScreen[0] - 12, top: hqScreen[1] - 6, transform: 'translateX(-100%)' }
+              : { left: hqScreen[0] + 12, top: hqScreen[1] - 6 }
+          }
         >
           {HQ.label} · HQ
         </div>
@@ -172,6 +176,31 @@ export default function Atlas() {
             onPointerUp={onTrackUp}
           >
             <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] bg-border rounded-full" />
+            {/* every real event leaves a notch on the track — sends white, replies red */}
+            {points.map((p) => {
+              const t = tsOf(p.lead.sent_at)
+              if (!t) return null
+              const tu = (t - domain[0]) / Math.max(1, domain[1] - domain[0])
+              return (
+                <div
+                  key={`s${p.lead.id}`}
+                  className="absolute top-1/2 -translate-y-1/2 w-px h-[8px] bg-primary/30"
+                  style={{ left: `${Math.max(0, Math.min(1, tu)) * 100}%` }}
+                />
+              )
+            })}
+            {points.map((p) => {
+              const t = tsOf(p.lead.replied_at)
+              if (!t) return null
+              const tu = (t - domain[0]) / Math.max(1, domain[1] - domain[0])
+              return (
+                <div
+                  key={`r${p.lead.id}`}
+                  className="absolute top-1/2 -translate-y-1/2 w-[2px] h-[11px] bg-red/80"
+                  style={{ left: `${Math.max(0, Math.min(1, tu)) * 100}%` }}
+                />
+              )
+            })}
             <div
               className="absolute left-0 top-1/2 -translate-y-1/2 h-[2px] bg-primary/70 rounded-full"
               style={{ width: `${u * 100}%` }}

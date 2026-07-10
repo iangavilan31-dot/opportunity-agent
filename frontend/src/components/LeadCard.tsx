@@ -104,23 +104,29 @@ export default function LeadCard({
 
   const q = lead.quality
   // red belongs to real business activity only — a blocked draft is a
-  // neutral workflow state, not a signal
+  // neutral workflow state, not a signal. And "Blocked" for a merely
+  // contact-less lead reads like an error on your best prospects.
+  const contactOnly = (q?.blocking ?? []).length > 0 &&
+    (q?.blocking ?? []).every((b) => /contact|email|address/i.test(b))
   const qConfig = {
     ready: { icon: CheckCircle2, color: 'text-primary', label: 'Ready' },
     warn: { icon: AlertTriangle, color: 'text-muted', label: 'Check' },
-    blocked: { icon: Ban, color: 'text-muted', label: 'Blocked' },
+    blocked: contactOnly
+      ? { icon: AlertTriangle, color: 'text-muted', label: 'Needs contact' }
+      : { icon: Ban, color: 'text-muted', label: 'Blocked' },
   }[q?.level ?? 'ready']
   const QIcon = qConfig.icon
   const qTip = [...(q?.blocking ?? []), ...(q?.warnings ?? [])].join(' · ')
 
   return (
     <>
+      {/* editorial row, not a boxed card: hairline top, focus = left rule + lift */}
       <div
         data-lead-id={lead.id}
-        className={`bg-surface border rounded-lg transition-all ${
-          focused ? 'border-accent ring-1 ring-accent/40' :
-          selected ? 'border-accent/50' :
-          isApproved ? 'border-green/30' : 'border-border hover:border-border/80'
+        className={`border-t border-border-subtle border-l-2 transition-all ${
+          focused ? 'border-l-primary bg-s2/50' :
+          selected ? 'border-l-muted bg-s2/30' :
+          isApproved ? 'border-l-dim bg-transparent hover:bg-s2/25' : 'border-l-transparent bg-transparent hover:bg-s2/25'
         }`}
       >
         {/* Top Row */}
@@ -171,14 +177,15 @@ export default function LeadCard({
               )}
             </div>
 
-            {/* Niche + Pain category (short facts stay chips) */}
+            {/* Niche + Pain category (short facts stay chips; never say one thing twice) */}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {lead.niche_label && lead.niche !== 'generic' && (
                 <span className="text-2xs px-1.5 py-0.5 rounded bg-s3 text-muted border border-border font-medium">
                   {lead.niche_label}
                 </span>
               )}
-              {lead.pain_category && (
+              {lead.pain_category &&
+                (CATEGORY_LABELS[lead.pain_category] ?? lead.pain_category).toLowerCase() !== (lead.niche_label ?? '').toLowerCase() && (
                 <span className="text-2xs px-1.5 py-0.5 rounded bg-s3 text-muted border border-border">
                   {CATEGORY_LABELS[lead.pain_category] ?? lead.pain_category}
                 </span>
@@ -295,20 +302,27 @@ export default function LeadCard({
           </div>
         )}
 
-        {/* Email Preview */}
+        {/* Email Preview — the artifact under review gets its first lines inline */}
         {lead.email_body && (
           <div className="mx-4 mb-3 border border-border rounded bg-s2">
             <button
               onClick={() => setExpanded(!expanded)}
-              className="w-full flex items-center justify-between px-3 py-2 text-muted hover:text-primary transition-colors"
+              className="w-full flex flex-col items-stretch px-3 py-2 text-left text-muted hover:text-primary transition-colors"
             >
-              <div className="flex items-center gap-2">
-                <Mail size={11} />
-                <span className="text-xs truncate max-w-[400px]">
-                  {lead.subject_line || 'No subject'}
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Mail size={11} className="shrink-0" />
+                  <span className="text-xs font-medium text-primary truncate max-w-[440px]">
+                    {lead.subject_line || 'No subject'}
+                  </span>
+                </div>
+                {expanded ? <ChevronUp size={11} className="shrink-0" /> : <ChevronDown size={11} className="shrink-0" />}
               </div>
-              {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              {!expanded && (
+                <div className="text-2xs text-muted mt-1 leading-relaxed overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                  {lead.email_body}
+                </div>
+              )}
             </button>
 
             {expanded && (
@@ -385,11 +399,11 @@ export default function LeadCard({
               <button
                 onClick={handleApproveAndGmail}
                 disabled={loading === 'approve'}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green/15 hover:bg-green/25 text-green border border-green/40 rounded transition-colors disabled:opacity-50 font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary hover:bg-primary/90 text-bg rounded transition-colors disabled:opacity-50 font-semibold"
                 title="Approve and open a pre-filled Gmail draft"
               >
                 <Send size={11} />
-                Approve & Gmail
+                Approve → Gmail
               </button>
             </>
           ) : (

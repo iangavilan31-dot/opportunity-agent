@@ -20,12 +20,12 @@ function StatCard({
   color?: string
 }) {
   return (
-    <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-3">
+    <div className="pt-4 border-t border-border-subtle flex flex-col gap-2.5">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted">{label}</span>
+        <span className="eyebrow !text-[10px]">{label}</span>
         <Icon size={13} className="text-dim" strokeWidth={1.5} />
       </div>
-      <div className={`text-3xl font-semibold num ${color}`}>{value}</div>
+      <div className={`text-3xl font-bold num tracking-tight ${color}`}>{value}</div>
       {sub && <div className="text-2xs text-muted">{sub}</div>}
     </div>
   )
@@ -83,8 +83,8 @@ export default function Dashboard() {
         </div>
 
         {/* Funnel — red exists only where real activity exists */}
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-xs text-muted mb-4">Funnel — live stage populations</div>
+        <div className="pt-5 border-t border-border-subtle">
+          <div className="eyebrow !text-[10px] mb-4">Funnel — live stage populations</div>
           <div className="flex items-end gap-3">
             {funnel.map(({ label, value, idx }) => {
               const pct = Math.max(4, (value / maxFunnel) * 100)
@@ -125,10 +125,19 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Niche Breakdown */}
-        {extra.nicheRows.length > 0 && (
-          <div className="bg-surface border border-border rounded-lg p-4">
-            <div className="text-xs text-muted mb-3">Businesses by Niche</div>
+        {/* Niche Breakdown — a chart only when there is a comparison to make */}
+        {extra.nicheRows.length === 1 && (
+          <div className="pt-5 border-t border-border-subtle">
+            <div className="eyebrow !text-[10px] mb-2">Businesses by Niche</div>
+            <div className="text-sm text-primary">
+              {extra.nicheRows[0].label} — <span className="num">{extra.nicheRows[0].count}</span>
+              <span className="text-muted"> businesses · avg score {extra.nicheRows[0].avgScore}</span>
+            </div>
+          </div>
+        )}
+        {extra.nicheRows.length > 1 && (
+          <div className="pt-5 border-t border-border-subtle">
+            <div className="eyebrow !text-[10px] mb-3">Businesses by Niche</div>
             <div className="flex flex-col gap-2">
               {extra.nicheRows.map((n) => {
                 const max = extra.nicheRows[0].count || 1
@@ -151,8 +160,8 @@ export default function Dashboard() {
         )}
 
         {/* Pipeline History */}
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-xs text-muted mb-3">Pipeline History</div>
+        <div className="pt-5 border-t border-border-subtle">
+          <div className="eyebrow !text-[10px] mb-3">Pipeline History</div>
           {history.length === 0 ? (
             <div className="text-muted text-xs py-4 text-center">No runs yet</div>
           ) : (

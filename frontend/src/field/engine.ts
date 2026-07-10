@@ -23,6 +23,10 @@ export const CENTROIDS: [number, number, number][] = Array.from({ length: 6 }, (
   const y = (i - 2.4) * 0.62
   return [Math.cos(a) * r, y, Math.sin(a) * r]
 })
+// declined businesses are still real businesses — they live outside the
+// funnel, dim and low, so "every point is one real company" is literally true
+export const DECLINED_STAGE = 6
+CENTROIDS.push([-6.8, -2.5, -3.0])
 
 function hash(n: number): number {
   let x = (n | 0) + 0x9e3779b9
@@ -40,7 +44,7 @@ attribute vec3 aPos; attribute vec3 aCen; attribute float aStage;
 attribute float aRand; attribute float aCore; attribute float aSize;
 attribute float aAct;
 uniform mat4 uVP; uniform float uTime; uniform float uFocus; uniform float uFocusMix;
-uniform float uPulse[6]; uniform float uDpr; uniform float uBloom;
+uniform float uPulse[7]; uniform float uDpr; uniform float uBloom;
 varying float vA; varying float vStage; varying float vCore; varying float vPulse;
 varying float vBloom;
 void main(){
@@ -56,12 +60,13 @@ void main(){
   gl_Position = mv;
   float focused = 1.0-uFocusMix*step(0.5, abs(aStage-uFocus));
   float act = aAct*(0.5+0.5*sin(uTime*2.2+aRand*6.28));
-  float won = step(4.5, aStage);
-  float base = mix(1.7, 4.2+3.2*aSize, aCore) + pl*3.0 + act*1.1 + won*2.6;
+  float won = step(4.5, aStage)*(1.0-step(5.5, aStage));
+  float dec = step(5.5, aStage);
+  float base = mix(1.7, 4.2+3.2*aSize, aCore) + pl*3.0 + act*1.1 + won*2.6 - dec*1.4;
   base *= mix(1.0, 7.0, uBloom);
   gl_PointSize = base*uDpr*(10.5/max(mv.w,0.4));
   // luminance floor: every real business is unambiguously visible
-  vA = (mix(0.30, 0.74+0.24*aSize, aCore)) * focused * mix(1.0, 0.13, uBloom);
+  vA = (mix(0.30, 0.74+0.24*aSize, aCore)) * focused * mix(1.0, 0.13, uBloom) * mix(1.0, 0.42, dec);
   // dust never wears red — only a real business that answered may
   vStage = mix(min(aStage, 2.0), aStage, aCore); vCore = aCore; vBloom = uBloom;
 }`
@@ -73,7 +78,8 @@ varying float vBloom;
 void main(){
   vec2 d = gl_PointCoord-0.5; float r = length(d);
   if(r>0.5) discard;
-  float won = step(4.5, vStage);
+  float won = step(4.5, vStage)*(1.0-step(5.5, vStage));
+  float dec = step(5.5, vStage);
   // won nodes carry a permanent soft halo; the bloom pass is all halo
   // (edge order matters: reversed-edge smoothstep is undefined on some drivers)
   float fall = mix(mix(0.02, 0.30, won), 0.0, vBloom);
@@ -86,6 +92,7 @@ void main(){
   vec3 col = mix(early, sent, smoothstep(0.8, 2.0, vStage));
   col = mix(col, red, smoothstep(2.2, 3.0, vStage));
   col = mix(col, redHi, won*0.65);
+  col = mix(col, vec3(0.44, 0.45, 0.49), dec);
   col = mix(col, vec3(1.0), vPulse*0.5);
   col += vCore*0.12;
   gl_FragColor = vec4(col, a);
@@ -124,7 +131,7 @@ export class FieldEngine {
   private raf = 0
   private t0 = performance.now()
   private vp: number[] | null = null
-  private pulses = [0, 0, 0, 0, 0, 0]
+  private pulses = [0, 0, 0, 0, 0, 0, 0]
   private cam = { az: 0.5, el: 0.16, r: 15.5, azT: 0.5, elT: 0.16, rT: 15.5, cx: 0, cy: 0, cz: 0, cxT: 0, cyT: 0, czT: 0 }
   private mouseAz = 0
   nodes: FieldNode[] = []
@@ -192,11 +199,13 @@ export class FieldEngine {
     const core: number[] = [], size: number[] = [], act: number[] = []
     const dayAgo = Date.now() - 24 * 3600 * 1000
     this.nodes = []
+    const declinedCount = leads.reduce((n, l) => n + (stageOf(l) < 0 ? 1 : 0), 0)
     for (const lead of leads) {
-      const s = stageOf(lead)
-      if (s < 0) continue
+      let s = stageOf(lead)
+      if (s < 0) s = DECLINED_STAGE
       const c = CENTROIDS[s]
-      const spread = 0.7 + Math.min(counts[s], 80) * 0.013
+      const n = s === DECLINED_STAGE ? declinedCount : counts[s]
+      const spread = 0.7 + Math.min(n, 80) * 0.013
       const w: [number, number, number] = [
         c[0] + g(lead.id, spread) * 1.6,
         c[1] + g(lead.id * 3 + 1, spread),
