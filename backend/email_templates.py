@@ -119,9 +119,11 @@ def generate_suite_template(
 
     # ── Short initial email — human cadence, no "Hi there", one tool, give-first ──
     seed = company_name or job_title
-    # Greeting: real name → "Hi {name}," ; no name → no limp greeting, open on the hook.
+    # Greeting: real name → "Hi {name},". No name → greet the business by name
+    # (Ian, 2026-07-10: every email greets; "Hi there" stays banned as a
+    # mass-send tell, so the company-team greeting is the fallback).
     has_name = bool(contact_name and contact_name.strip())
-    greeting = f"Hi {fn},\n\n" if has_name else ""
+    greeting = f"Hi {fn},\n\n" if has_name else f"Hi {company_name} team,\n\n"
     tool_tail = _variant(seed + "tool", [
         f", and {tool_ref} never quite stays current",
         f" — and keeping {tool_ref} updated falls to the bottom of the list",

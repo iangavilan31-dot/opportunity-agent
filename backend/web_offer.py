@@ -177,7 +177,10 @@ def generate_website_suite(
         issue_clause = _issue_clause(signals, company_name, noun, how_found)
     seed = (company_name or "") + (city or "")
     has_name = bool(contact_name and contact_name.strip())
-    greeting = f"Hi {fn},\n\n" if has_name else ""
+    # Every email opens like a human wrote it (Ian, 2026-07-10). No name is no
+    # excuse to skip the greeting — but "Hi there" stays banned (mass-send
+    # tell), so the fallback greets the business by its short name.
+    greeting = f"Hi {fn},\n\n" if has_name else f"Hi {company_name} team,\n\n"
 
     # Identity + social proof + optional Google Meet offer (config-driven).
     studio = getattr(config, "STUDIO_NAME", "").strip()
