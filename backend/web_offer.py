@@ -18,7 +18,7 @@ import re
 from urllib.parse import quote_plus
 
 import config
-from email_templates import _variant, _first_name, _article, greeting_name
+from email_templates import _variant, _first_name, _article, greeting_name, sentence_case
 
 
 def _plural(noun: str) -> str:
@@ -245,7 +245,7 @@ def generate_website_suite(
             f"a couple things on {company_name}'s website",
             f"{company_name}'s website",
         ]
-    subject = _variant(seed + "subj", subject_pool)
+    subject = sentence_case(_variant(seed + "subj", subject_pool))
 
     # ── Short initial email (~80-90 words), give-first ───────────────────────
     give = _variant(seed + "give", [

@@ -32,6 +32,16 @@ def _first_name(contact_name: str) -> str:
     return "there"
 
 
+def sentence_case(s: str) -> str:
+    """Subjects ship sentence-case: 'quick idea for X' next to a proper
+    greeting reads sloppy, not casual (Ian, 2026-07-10). First character only
+    if it's a letter — '1st Scottsdale Dental' must not become '1St'."""
+    s = s or ""
+    if s and s[0].isalpha():
+        return s[0].upper() + s[1:]
+    return s
+
+
 _LEGAL_SUFFIX = re.compile(
     r"[,\s]+(?:p\.?a\.?|p\.?c\.?|l\.?l\.?c\.?|l\.?l\.?p\.?|inc\.?|ltd\.?|corp\.?"
     r"|esq\.?|d\.?d\.?s\.?|d\.?c\.?|m\.?d\.?)\s*$", re.IGNORECASE)
@@ -162,10 +172,10 @@ def generate_suite_template(
 
     # ── Subject (stable per company, varied across the batch) ────────────
     subject_angles = pack.get("subject_angles") or [a for a in SUBJECT_TEMPLATES]
-    subject = _variant(company_name + "subj", subject_angles).format(
+    subject = sentence_case(_variant(company_name + "subj", subject_angles).format(
         job_title=job_title, company=company_name, wf_a=wf_a,
         article=_article(job_title),
-    )
+    ))
 
     # ── Short initial email — human cadence, no "Hi there", one tool, give-first ──
     seed = company_name or job_title

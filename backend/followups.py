@@ -106,7 +106,7 @@ def process(db, log=print) -> dict:
         if not fu1 and days_out >= fu1_days and lead.contact_email and lead.follow_up_1:
             did = gmail_drafts.create_draft(
                 to=lead.contact_email,
-                subject=f"re: {lead.subject_line}",
+                subject=f"Re: {lead.subject_line}",
                 body=apply_signature(lead.follow_up_1, web_profile()))
             if did:
                 lead.notes = f"{notes} fu1_draft:{did}".strip()
@@ -118,7 +118,7 @@ def process(db, log=print) -> dict:
               and days_out >= fu2_days and lead.contact_email and lead.follow_up_2):
             did = gmail_drafts.create_draft(
                 to=lead.contact_email,
-                subject=f"re: {lead.subject_line}",
+                subject=f"Re: {lead.subject_line}",
                 body=apply_signature(lead.follow_up_2, web_profile()))
             if did:
                 lead.notes = f"{lead.notes} fu2_draft:{did}".strip()

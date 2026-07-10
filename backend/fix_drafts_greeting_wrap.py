@@ -18,7 +18,7 @@ import sqlite3
 import sys
 
 import gmail_drafts
-from email_templates import greeting_name
+from email_templates import greeting_name, sentence_case
 
 _HERE_DB = "opportunity_agent.db"
 
@@ -95,14 +95,18 @@ def main() -> None:
             new_body = _greeting_for(name, company) + "\n\n" + body.lstrip("\n")
             added_greeting = True
 
+        new_subject = sentence_case(subject)
         tag = "greeting + flow" if added_greeting else "flow only (already greets)"
+        if new_subject != subject:
+            tag += " + subject case"
         print(f"- {to}  [{tag}]")
-        print(f"    opens: {new_body.lstrip().splitlines()[0][:78]!r}")
+        print(f"    subject: {new_subject!r}")
+        print(f"    opens:   {new_body.lstrip().splitlines()[0][:78]!r}")
         if dry:
             fixed += 1
             greeted += int(added_greeting)
             continue
-        if gmail_drafts.update_draft(did, to, subject, new_body):
+        if gmail_drafts.update_draft(did, to, new_subject, new_body):
             fixed += 1
             greeted += int(added_greeting)
         else:
