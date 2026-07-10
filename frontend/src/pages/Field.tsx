@@ -178,18 +178,24 @@ export default function Field() {
         </div>
       ))}
 
-      {/* single-business card — appears only when you look closely */}
+      {/* single-business card — the moment "every dot is real" pays off */}
       {tip && (
         <div
           ref={tipRef}
-          className="absolute z-10 pointer-events-none emerge bg-surface/90 border border-border rounded-[10px] px-3.5 py-2.5 backdrop-blur-sm"
-          style={{ maxWidth: 260 }}
+          className="absolute z-10 pointer-events-none emerge bg-s3/95 border border-muted/40 rounded-[10px] px-4 py-3 backdrop-blur-md"
+          style={{ maxWidth: 280, boxShadow: '0 10px 34px rgba(0,0,0,0.65)' }}
         >
-          <div className="text-[13px] font-bold text-primary leading-tight">{tip.company_name}</div>
-          <div className="text-[11px] text-muted mt-0.5">{tip.job_location || '—'}</div>
-          <div className="flex items-baseline gap-3 mt-1.5">
-            <span className="eyebrow !text-[9px]">{tip.status}</span>
-            <span className="text-[11px] num text-primary">{tip.automation_score}</span>
+          <div className="text-[13.5px] font-bold text-primary leading-tight">{tip.company_name}</div>
+          <div className="text-[11px] text-muted mt-1">{tip.job_location || '—'}</div>
+          <div className="flex items-baseline gap-5 mt-2.5">
+            <span>
+              <span className="eyebrow !text-[8.5px] mr-1.5">Stage</span>
+              <b className="text-[11.5px] text-primary capitalize">{tip.status}</b>
+            </span>
+            <span>
+              <span className="eyebrow !text-[8.5px] mr-1.5">Score</span>
+              <b className="text-[11.5px] num text-primary">{tip.automation_score}</b>
+            </span>
           </div>
         </div>
       )}
@@ -228,7 +234,7 @@ export default function Field() {
         </div>
         <div className="mt-4 text-[14px] font-medium text-muted max-w-[40ch] leading-relaxed min-h-[21px]">
           {focus >= 0
-            ? `${sum.counts[focus]} ${sum.counts[focus] === 1 ? 'business' : 'businesses'} ${STAGES[focus].name.toLowerCase()} right now.`
+            ? `${sum.counts[focus]} ${sum.counts[focus] === 1 ? 'business' : 'businesses'} in ${STAGES[focus].name} right now.`
             : `${sum.discovered} real businesses discovered · ${sum.declined} declined · ${money(sum.earned)} earned. Every point is one real company.`}
         </div>
       </div>
@@ -239,7 +245,7 @@ export default function Field() {
           <div
             key={s.key}
             className={`grid grid-cols-[1fr_auto] items-baseline gap-4 py-[7px] cursor-pointer transition-opacity ${
-              focus === i ? 'opacity-100' : 'opacity-60 hover:opacity-100'
+              focus === i ? 'opacity-100' : 'opacity-85 hover:opacity-100'
             }`}
             onMouseEnter={() => applyFocus(i)}
             onMouseLeave={() => { if ((engineRef.current?.lockedFocus ?? -1) < 0) applyFocus(-1) }}
@@ -253,9 +259,9 @@ export default function Field() {
             <span className="text-[19px] font-extrabold num text-primary min-w-[2ch]">{sum.counts[i]}</span>
           </div>
         ))}
-        <div className="grid grid-cols-[1fr_auto] items-baseline gap-4 pt-3 mt-1 border-t border-border-subtle opacity-45">
-          <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-dim">Declined</span>
-          <span className="text-[13px] font-bold num text-dim">{sum.declined}</span>
+        <div className="grid grid-cols-[1fr_auto] items-baseline gap-4 pt-3 mt-1 border-t border-border-subtle opacity-70">
+          <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted">Declined</span>
+          <span className="text-[13px] font-bold num text-muted">{sum.declined}</span>
         </div>
       </div>
 

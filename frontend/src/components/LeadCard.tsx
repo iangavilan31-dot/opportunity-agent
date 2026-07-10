@@ -103,10 +103,12 @@ export default function LeadCard({
   const openEditor = () => (onOpenEditor ? onOpenEditor(lead) : setShowModal(true))
 
   const q = lead.quality
+  // red belongs to real business activity only — a blocked draft is a
+  // neutral workflow state, not a signal
   const qConfig = {
-    ready: { icon: CheckCircle2, color: 'text-green', label: 'Ready' },
-    warn: { icon: AlertTriangle, color: 'text-yellow', label: 'Check' },
-    blocked: { icon: Ban, color: 'text-red', label: 'Blocked' },
+    ready: { icon: CheckCircle2, color: 'text-primary', label: 'Ready' },
+    warn: { icon: AlertTriangle, color: 'text-muted', label: 'Check' },
+    blocked: { icon: Ban, color: 'text-muted', label: 'Blocked' },
   }[q?.level ?? 'ready']
   const QIcon = qConfig.icon
   const qTip = [...(q?.blocking ?? []), ...(q?.warnings ?? [])].join(' · ')
@@ -169,30 +171,33 @@ export default function LeadCard({
               )}
             </div>
 
-            {/* Niche + Pain category + workflows */}
+            {/* Niche + Pain category (short facts stay chips) */}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {lead.niche_label && lead.niche !== 'generic' && (
-                <span className="text-2xs px-1.5 py-0.5 rounded bg-purple/15 text-purple border border-purple/30 font-medium">
+                <span className="text-2xs px-1.5 py-0.5 rounded bg-s3 text-muted border border-border font-medium">
                   {lead.niche_label}
                 </span>
               )}
               {lead.pain_category && (
-                <span className="text-2xs px-1.5 py-0.5 rounded bg-accent-dim text-accent border border-accent/20">
+                <span className="text-2xs px-1.5 py-0.5 rounded bg-s3 text-muted border border-border">
                   {CATEGORY_LABELS[lead.pain_category] ?? lead.pain_category}
                 </span>
               )}
-              {lead.inferred_workflows.slice(0, 3).map((w, i) => (
-                <span
-                  key={i}
-                  className="text-2xs px-1.5 py-0.5 rounded bg-s3 text-muted border border-border"
-                >
-                  {w}
-                </span>
-              ))}
-              {lead.inferred_workflows.length > 3 && (
-                <span className="text-2xs text-dim">+{lead.inferred_workflows.length - 3} more</span>
-              )}
             </div>
+            {/* Observations are sentences — set them as quiet lines, not tags */}
+            {lead.inferred_workflows.length > 0 && (
+              <div className="flex flex-col gap-0.5 mt-1.5">
+                {lead.inferred_workflows.slice(0, 2).map((w, i) => (
+                  <div key={i} className="text-2xs text-muted leading-snug flex gap-1.5">
+                    <span className="text-dim shrink-0">—</span>
+                    <span>{w}</span>
+                  </div>
+                ))}
+                {lead.inferred_workflows.length > 2 && (
+                  <span className="text-2xs text-dim ml-3.5">+{lead.inferred_workflows.length - 2} more</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Quality + Status */}
@@ -364,7 +369,7 @@ export default function LeadCard({
               <button
                 onClick={handleReject}
                 disabled={loading === 'reject'}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted hover:text-red border border-border hover:border-red/40 rounded transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted hover:text-primary border border-border hover:border-muted rounded transition-colors disabled:opacity-50"
               >
                 <X size={11} />
                 Reject

@@ -39,8 +39,11 @@ export default function Queue() {
         page,
         limit: 25,
       })
-      setLeads(res.leads)
-      setTotal(res.total)
+      // one canonical dataset: only real web-machine businesses, never the
+      // leftover demo rows — the queue count must match the Field's
+      const real = res.leads.filter((l) => l.source === 'website_autopilot')
+      setLeads(real)
+      setTotal(res.pages === 1 ? real.length : res.total)
       setPages(res.pages)
       setFocusedIdx(0)
     } finally {
@@ -160,7 +163,7 @@ export default function Queue() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-primary font-semibold text-xl">Queue</h1>
+          <h1 className="text-[13px] font-bold tracking-[0.28em] uppercase text-primary">Queue</h1>
           <span className="text-muted text-sm font-mono">{total} leads</span>
         </div>
 
@@ -248,7 +251,7 @@ export default function Queue() {
           <div className="flex-1" />
           <button
             onClick={bulkReject}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted hover:text-red border border-border rounded transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted hover:text-primary border border-border hover:border-muted rounded transition-colors"
           >
             <X size={11} /> Reject all
           </button>

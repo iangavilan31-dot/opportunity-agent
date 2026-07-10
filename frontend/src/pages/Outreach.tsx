@@ -192,7 +192,7 @@ export default function Outreach() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-primary font-semibold text-xl">Outreach</h1>
+          <h1 className="text-[13px] font-bold tracking-[0.28em] uppercase text-primary">Outreach</h1>
           <span className="text-muted text-sm font-mono">{total}</span>
         </div>
         <button

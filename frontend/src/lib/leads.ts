@@ -80,6 +80,52 @@ export function summarize(leads: Lead[]): FunnelSummary {
   }
 }
 
+export interface NicheRow {
+  niche: string
+  label: string
+  count: number
+  avgScore: number
+  estValue: number
+}
+
+/** Everything analytics needs, computed from the same real leads every other
+ * surface renders — one canonical count per business, no server-side drift. */
+export function analyze(leads: Lead[]) {
+  const active = leads.filter((l) => stageOf(l) >= 0)
+  const niches = new Map<string, { label: string; count: number; score: number; est: number }>()
+  const cities = new Set<string>()
+  const bins = [0, 0, 0, 0, 0] // 90+, 80s, 70s, 60s, <60 — equal-width, honest
+  const sendsByDay = new Map<string, number>()
+  let estPotential = 0
+  for (const l of active) {
+    const key = l.niche || 'other'
+    const cur = niches.get(key) || { label: l.niche_label || 'Other', count: 0, score: 0, est: 0 }
+    const est = (Number(l.offer?.setup) || 0) + (Number(l.offer?.monthly) || 0) * 12
+    cur.count++; cur.score += l.automation_score || 0; cur.est += est
+    niches.set(key, cur)
+    estPotential += est
+    if (l.job_location) cities.add(l.job_location.trim().toLowerCase())
+    const s = l.automation_score || 0
+    bins[s >= 90 ? 0 : s >= 80 ? 1 : s >= 70 ? 2 : s >= 60 ? 3 : 4]++
+    const sent = ts(l.sent_at)
+    if (sent) {
+      const day = new Date(sent).toISOString().slice(0, 10)
+      sendsByDay.set(day, (sendsByDay.get(day) || 0) + 1)
+    }
+  }
+  const nicheRows: NicheRow[] = [...niches.entries()]
+    .map(([niche, v]) => ({ niche, label: v.label, count: v.count, avgScore: Math.round(v.score / v.count), estValue: v.est }))
+    .sort((a, b) => b.estValue - a.estValue)
+  return {
+    nicheRows,
+    cityCount: cities.size,
+    bins,
+    binLabels: ['90+', '80s', '70s', '60s', '<60'],
+    sendsByDay: [...sendsByDay.entries()].sort(([a], [b]) => a.localeCompare(b)),
+    estPotential,
+  }
+}
+
 export function useRealLeads(pollMs = 30000) {
   const [leads, setLeads] = useState<Lead[]>([])
   const [live, setLive] = useState<boolean | null>(null)

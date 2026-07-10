@@ -61,7 +61,7 @@ export default function Send() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-primary font-semibold text-xl">Send</h1>
+          <h1 className="text-[13px] font-bold tracking-[0.28em] uppercase text-primary">Send</h1>
           <span className="text-muted text-sm font-mono">{drafts.length} ready</span>
           {sentCount > 0 && (
             <span className="text-green text-sm font-mono">{sentCount} sent this session</span>
@@ -94,7 +94,13 @@ export default function Send() {
           <div className="flex flex-col items-center justify-center h-64 text-center">
             <SendIcon size={32} className="text-dim mb-3" strokeWidth={1} />
             <div className="text-muted text-sm">No approved drafts</div>
-            <div className="text-dim text-xs mt-1">Approve leads in the Queue and they'll appear here ready to send</div>
+            <div className="text-muted text-xs mt-1">Approve leads in the Queue and they'll appear here ready to send</div>
+            <a
+              href="/queue"
+              className="mt-4 px-4 py-2 bg-primary hover:bg-primary/90 text-bg rounded text-xs font-semibold transition-colors"
+            >
+              Review the Queue
+            </a>
           </div>
         ) : (
           <div className="flex flex-col gap-2">

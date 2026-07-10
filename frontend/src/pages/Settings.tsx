@@ -50,7 +50,7 @@ export default function Settings() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="px-6 py-4 border-b border-border">
-        <h1 className="text-primary font-semibold text-xl">Settings</h1>
+        <h1 className="text-[13px] font-bold tracking-[0.28em] uppercase text-primary">Settings</h1>
         <p className="text-muted text-xs mt-0.5">Your sender profile — auto-filled into the signature of every email</p>
       </div>
 

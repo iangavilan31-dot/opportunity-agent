@@ -76,7 +76,7 @@ await page.mouse.click(800, 200)
 await sleep(400)
 
 // ── 2. GROWTH ATLAS (rail click — real navigation) ───────────────────────
-await page.locator('a[title="Growth Atlas"]').click()
+await page.locator('a[title="Atlas"]').click()
 await sleep(2500)
 await shot('04-atlas-live')
 await fps('atlas')
@@ -119,7 +119,7 @@ const pages = [
   ['Overview', '08-overview'],
   ['Queue', '09-queue'],
   ['Send', '10-send'],
-  ['Follow-ups', '11-followups'],
+  ['Follow up', '11-followups'],
   ['Outreach', '12-outreach'],
   ['Analytics', '13-analytics'],
   ['Pipeline', '14-pipeline'],
@@ -132,7 +132,7 @@ for (const [title, name] of pages) {
 }
 
 // back home for the record
-await page.locator('a[title="The Field"]').click()
+await page.locator('a[title="Field"]').click()
 await sleep(1500)
 
 writeFileSync(join(outDir, 'qa-report.json'), JSON.stringify(report, null, 2))

@@ -53,18 +53,18 @@ function Row({ item, due, onSent, onReplied }: {
         <div className="text-muted text-xs truncate mt-0.5">{item.subject_line}</div>
       </div>
 
-      <div className="flex items-center gap-1.5 text-2xs text-dim shrink-0">
+      <div className="flex items-center gap-1.5 text-2xs text-muted shrink-0">
         <Clock size={11} />
-        {due ? `${item.days_waiting}d waiting` : `due in ${item.days_until_due}d`}
+        {due ? `${Math.round(item.days_waiting)}d waiting` : `due in ${Math.max(1, Math.round(item.days_until_due))}d`}
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={markReplied}
-          className="flex items-center gap-1 px-2 py-1.5 text-2xs text-muted hover:text-cyan border border-border rounded transition-colors"
+          className="flex items-center gap-1 px-2 py-1.5 text-2xs text-muted hover:text-primary border border-border hover:border-muted rounded transition-colors"
           title="They replied — stop the sequence"
         >
-          <MessageSquare size={10} /> Replied
+          <MessageSquare size={10} /> Mark replied
         </button>
         {due && (
           <button
@@ -109,7 +109,7 @@ export default function Followups() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-primary font-semibold text-xl">Follow-ups</h1>
+          <h1 className="text-[13px] font-bold tracking-[0.28em] uppercase text-primary">Follow-ups</h1>
           <span className="text-muted text-sm font-mono">{due.length} due · {upcoming.length} upcoming</span>
         </div>
         <button

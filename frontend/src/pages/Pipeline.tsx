@@ -84,7 +84,7 @@ export default function Pipeline() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="px-6 py-4 border-b border-border">
-        <h1 className="text-primary font-semibold text-xl">Pipeline</h1>
+        <h1 className="text-[13px] font-bold tracking-[0.28em] uppercase text-primary">Pipeline</h1>
         <p className="text-muted text-xs mt-0.5">
           Scrape → Score → Research → Generate emails → Queue for review
         </p>
@@ -179,7 +179,7 @@ export default function Pipeline() {
                 <span>{q}</span>
                 <button
                   onClick={() => setQueries((prev) => prev.filter((x) => x !== q))}
-                  className="text-dim hover:text-red transition-colors"
+                  className="text-dim hover:text-primary transition-colors"
                 >
                   <X size={10} />
                 </button>

@@ -283,7 +283,7 @@ export class AtlasEngine {
     // the bundle apart so 34 sends read as 34 strands, not one rope
     let nx = -dy / d, ny = dx / d
     if (ny > 0) { nx = -nx; ny = -ny }
-    const lift = Math.min(d * (0.10 + p.breath * 0.14), 78)
+    const lift = Math.min(d * (0.07 + p.breath * 0.20), 88)
     const cx = mx + nx * lift, cy = my + ny * lift
     const hot = (!!p.tReplied || p.won)
     ctx.strokeStyle = p.won

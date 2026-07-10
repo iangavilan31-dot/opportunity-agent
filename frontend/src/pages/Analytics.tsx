@@ -1,157 +1,159 @@
-import { useEffect, useState } from 'react'
-import { TrendingUp, DollarSign, Target, RefreshCw } from 'lucide-react'
-import { api } from '../api'
-
-type Data = Awaited<ReturnType<typeof api.analytics>>
-
-// monochrome until the business answers — then red
-const FUNNEL_STAGES = [
-  { key: 'queued', label: 'Queued', color: '#4a4a52' },
-  { key: 'approved', label: 'Approved', color: '#8b8b93' },
-  { key: 'sent', label: 'Sent', color: '#f5f5f6' },
-  { key: 'replied', label: 'Replied', color: '#e5484d' },
-  { key: 'meeting', label: 'Meeting', color: '#f0605f' },
-]
+import { useMemo } from 'react'
+import { TrendingUp, DollarSign, Send } from 'lucide-react'
+import { useRealLeads, summarize, analyze, STAGES } from '../lib/leads'
+import PageHeader from '../components/PageHeader'
 
 function money(n: number): string {
   if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`
   return `$${n}`
 }
 
+// monochrome until the business answers — then red
+const STAGE_COLOR = (idx: number, count: number) =>
+  count === 0 ? '#2a2a30' : idx >= 3 ? '#e5484d' : idx === 2 ? '#f5f5f6' : '#8b8b93'
+
 export default function Analytics() {
-  const [data, setData] = useState<Data | null>(null)
-  const [loading, setLoading] = useState(false)
+  // computed from the same canonical real leads as every other surface —
+  // one count per business, no server-side drift, no demo rows
+  const { leads, refresh } = useRealLeads(30000)
+  const sum = useMemo(() => summarize(leads), [leads])
+  const extra = useMemo(() => analyze(leads), [leads])
 
-  const load = () => {
-    setLoading(true)
-    api.analytics().then(setData).finally(() => setLoading(false))
-  }
-  useEffect(() => { load() }, [])
-
-  if (!data) {
-    return <div className="flex items-center justify-center h-full text-muted text-sm">Loading…</div>
-  }
-
-  const maxFunnel = Math.max(...FUNNEL_STAGES.map((s) => data.funnel[s.key] || 0), 1)
-  const maxNiche = Math.max(...data.by_niche.map((n) => n.potential), 1)
+  const maxFunnel = Math.max(1, ...sum.counts)
+  const maxNiche = Math.max(1, ...extra.nicheRows.map((n) => n.estValue))
+  const maxBin = Math.max(1, ...extra.bins)
+  const maxDay = Math.max(1, ...extra.sendsByDay.map(([, c]) => c))
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-        <h1 className="text-primary font-semibold text-xl">Analytics</h1>
+      <PageHeader title="Analytics">
         <button
-          onClick={load}
-          disabled={loading}
-          className="p-1.5 text-muted hover:text-primary border border-border rounded transition-colors disabled:opacity-40"
+          onClick={refresh}
+          className="p-1.5 text-muted hover:text-primary border border-border rounded transition-colors"
+          title="Refresh"
         >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          <TrendingUp size={13} />
         </button>
-      </div>
+      </PageHeader>
 
       <div className="p-6 flex flex-col gap-6">
-        {/* Pipeline value — the headline numbers */}
+        {/* the only headline numbers are REAL ones; dollars are labeled estimates */}
         <div className="grid grid-cols-3 gap-3">
-          {/* the only headline number is a REAL one; dollars here are estimates
-              and must say so — earned money lives on the Field, not in analytics */}
           <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted">Active Leads</span>
+              <span className="text-xs text-muted">Active Businesses</span>
               <TrendingUp size={13} className="text-dim" />
             </div>
-            <div className="text-3xl font-semibold font-mono text-primary">
-              {Object.values(data.funnel).reduce((a, b) => a + b, 0)}
-            </div>
-            <div className="text-2xs text-dim">In the funnel right now</div>
+            <div className="text-3xl font-semibold num text-primary">{sum.active}</div>
+            <div className="text-2xs text-muted">{sum.discovered} discovered · {sum.declined} declined</div>
           </div>
           <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted">Weighted Pipeline · estimate</span>
+              <span className="text-xs text-muted">Reached</span>
+              <Send size={13} className="text-dim" />
+            </div>
+            <div className="text-3xl font-semibold num text-primary">{sum.cumulative.sent}</div>
+            <div className="text-2xs text-muted">
+              {sum.cumulative.replied} replied · {sum.cumulative.meeting} meetings · {sum.cumulative.won} won
+            </div>
+          </div>
+          <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted">Potential · estimate</span>
               <DollarSign size={13} className="text-dim" />
             </div>
-            <div className="text-3xl font-semibold font-mono text-muted">{money(data.pipeline.weighted)}</div>
-            <div className="text-2xs text-dim">Projection, probability-weighted by stage — not earned money</div>
-          </div>
-          <div className="bg-surface border border-border rounded-lg p-4 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted">Total Potential · estimate</span>
-              <Target size={13} className="text-dim" />
-            </div>
-            <div className="text-3xl font-semibold font-mono text-muted">{money(data.pipeline.total_potential)}</div>
-            <div className="text-2xs text-dim">Projection if every active lead closed — not earned money</div>
+            <div className="text-3xl font-semibold num text-muted">{money(extra.estPotential)}</div>
+            <div className="text-2xs text-muted">Projection if every active lead closed — not earned money</div>
           </div>
         </div>
 
-        {/* Funnel with conversion */}
+        {/* Funnel — live stage populations, plainly. No invented conversion math. */}
         <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-xs text-muted mb-4">Conversion Funnel</div>
+          <div className="text-xs text-muted mb-4">Funnel — where every business stands right now</div>
           <div className="flex flex-col gap-2.5">
-            {FUNNEL_STAGES.map((s, i) => {
-              const count = data.funnel[s.key] || 0
-              const prev = i > 0 ? (data.funnel[FUNNEL_STAGES[i - 1].key] || 0) : null
-              const conv = prev && prev > 0 ? Math.round((count / prev) * 100) : null
+            {STAGES.map((s, i) => {
+              const count = sum.counts[i]
               return (
                 <div key={s.key} className="flex items-center gap-3">
-                  <span className="text-xs text-muted w-20 shrink-0">{s.label}</span>
-                  <div className="flex-1 h-5 bg-s3 rounded overflow-hidden relative">
+                  <span className="text-xs text-muted w-20 shrink-0">{s.name}</span>
+                  <div className="flex-1 h-5 relative">
                     <div
                       className="h-full rounded transition-all flex items-center px-2"
                       style={{
-                        width: `${Math.max(3, (count / maxFunnel) * 100)}%`,
-                        // red is earned by real activity — an empty stage stays gray
-                        background: count > 0 ? s.color : '#3c3c44',
-                        opacity: 0.75,
+                        width: `${Math.max(4, (count / maxFunnel) * 100)}%`,
+                        background: STAGE_COLOR(i, count),
+                        opacity: 0.8,
                       }}
                     >
-                      <span className={`text-2xs font-mono font-medium ${count > 0 && (s.key === 'sent' || s.key === 'approved') ? 'text-bg' : 'text-primary'}`}>{count}</span>
+                      <span className={`text-2xs num font-medium ${count > 0 && i === 2 ? 'text-bg' : 'text-primary'}`}>{count}</span>
                     </div>
                   </div>
-                  <span className="text-2xs text-dim font-mono w-16 text-right">
-                    {conv != null ? `${conv}% conv` : ''}
-                  </span>
                 </div>
               )
             })}
           </div>
         </div>
 
-        {/* Niche performance */}
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-xs text-muted mb-4">Estimated Value by Niche · projections, not earned</div>
-          <div className="flex flex-col gap-2.5">
-            {data.by_niche.map((n) => (
-              <div key={n.niche} className="flex items-center gap-3">
-                <span className="text-xs text-muted w-40 shrink-0 truncate">{n.label}</span>
-                <div className="flex-1 h-1.5 bg-s3 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full bg-green/60" style={{ width: `${(n.potential / maxNiche) * 100}%` }} />
+        {/* Estimated value by niche */}
+        {extra.nicheRows.length > 0 && (
+          <div className="bg-surface border border-border rounded-lg p-4">
+            <div className="text-xs text-muted mb-4">Estimated Value by Niche · projections, not earned</div>
+            <div className="flex flex-col gap-2">
+              {extra.nicheRows.map((n) => (
+                <div key={n.niche} className="flex items-center gap-3">
+                  <span className="text-xs text-muted w-40 shrink-0 truncate">{n.label}</span>
+                  <div className="flex-1 h-1.5 relative">
+                    <div
+                      className="h-full rounded-full bg-primary/40"
+                      style={{ width: `${(n.estValue / maxNiche) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-muted num w-14 text-right">{money(n.estValue)}</span>
+                  <span className="text-2xs text-muted num w-12 text-right whitespace-nowrap">{n.count} ld</span>
+                  <span className="text-2xs text-muted num w-16 text-right whitespace-nowrap">avg {n.avgScore}</span>
                 </div>
-                <span className="text-xs text-green font-mono w-14 text-right">{money(n.potential)}</span>
-                <span className="text-2xs text-dim font-mono w-12 text-right">{n.count} ld</span>
-                <span className="text-2xs text-dim font-mono w-14 text-right">avg {n.avg_score}</span>
-                <span className="text-2xs text-cyan font-mono w-16 text-right">
-                  {n.reply_rate != null ? `${n.reply_rate}% rep` : '—'}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Score distribution */}
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-xs text-muted mb-4">Lead Quality Distribution</div>
-          <div className="flex items-end gap-3 h-28">
-            {data.score_bands.map((b) => {
-              const max = Math.max(...data.score_bands.map((x) => x.count), 1)
-              return (
-                <div key={b.band} className="flex-1 flex flex-col items-center gap-2 justify-end h-full">
-                  <span className="text-xs font-mono text-primary">{b.count}</span>
+        <div className="grid grid-cols-2 gap-3">
+          {/* Quality distribution — equal-width score bands */}
+          <div className="bg-surface border border-border rounded-lg p-4">
+            <div className="text-xs text-muted mb-4">Opportunity Score Distribution</div>
+            <div className="flex items-end gap-2 h-28">
+              {extra.bins.map((count, i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5 flex-1 h-full justify-end">
+                  <span className="text-2xs num text-muted">{count}</span>
                   <div
-                    className="w-full rounded-sm bg-accent/60 transition-all"
-                    style={{ height: `${Math.max(2, (b.count / max) * 80)}%` }}
+                    className="w-full rounded-sm bg-primary/60 transition-all"
+                    style={{ height: `${Math.max(3, (count / maxBin) * 72)}px` }}
                   />
-                  <span className="text-2xs text-dim">{b.band}</span>
+                  <span className="text-2xs text-muted">{extra.binLabels[i]}</span>
                 </div>
-              )
-            })}
+              ))}
+            </div>
+          </div>
+
+          {/* Sends by day — real events only */}
+          <div className="bg-surface border border-border rounded-lg p-4">
+            <div className="text-xs text-muted mb-4">Emails Sent by Day</div>
+            {extra.sendsByDay.length === 0 ? (
+              <div className="text-muted text-xs py-6 text-center">No sends yet</div>
+            ) : (
+              <div className="flex items-end gap-2 h-28">
+                {extra.sendsByDay.slice(-14).map(([day, count]) => (
+                  <div key={day} className="flex flex-col items-center gap-1.5 flex-1 h-full justify-end">
+                    <span className="text-2xs num text-muted">{count}</span>
+                    <div
+                      className="w-full rounded-sm bg-primary/60 transition-all"
+                      style={{ height: `${Math.max(3, (count / maxDay) * 72)}px` }}
+                    />
+                    <span className="text-2xs text-muted whitespace-nowrap">{day.slice(5)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

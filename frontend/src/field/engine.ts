@@ -57,10 +57,11 @@ void main(){
   float focused = 1.0-uFocusMix*step(0.5, abs(aStage-uFocus));
   float act = aAct*(0.5+0.5*sin(uTime*2.2+aRand*6.28));
   float won = step(4.5, aStage);
-  float base = mix(1.7, 3.8+3.0*aSize, aCore) + pl*3.0 + act*1.1 + won*2.6;
-  base *= mix(1.0, 5.5, uBloom);
+  float base = mix(1.7, 4.2+3.2*aSize, aCore) + pl*3.0 + act*1.1 + won*2.6;
+  base *= mix(1.0, 7.0, uBloom);
   gl_PointSize = base*uDpr*(10.5/max(mv.w,0.4));
-  vA = (mix(0.26, 0.62+0.33*aSize, aCore)) * focused * mix(1.0, 0.10, uBloom);
+  // luminance floor: every real business is unambiguously visible
+  vA = (mix(0.30, 0.74+0.24*aSize, aCore)) * focused * mix(1.0, 0.13, uBloom);
   // dust never wears red — only a real business that answered may
   vStage = mix(min(aStage, 2.0), aStage, aCore); vCore = aCore; vBloom = uBloom;
 }`
@@ -78,7 +79,7 @@ void main(){
   float fall = mix(mix(0.02, 0.30, won), 0.0, vBloom);
   float a = (1.0 - smoothstep(fall, 0.5, r))*vA;
   // monochrome until the business answers — then, and only then, red
-  vec3 early = vec3(0.63, 0.65, 0.72);
+  vec3 early = vec3(0.70, 0.72, 0.78);
   vec3 sent  = vec3(0.93, 0.93, 0.96);
   vec3 red   = vec3(0.898, 0.282, 0.302);
   vec3 redHi = vec3(1.0, 0.52, 0.50);
@@ -195,7 +196,7 @@ export class FieldEngine {
       const s = stageOf(lead)
       if (s < 0) continue
       const c = CENTROIDS[s]
-      const spread = 0.7 + Math.min(counts[s], 80) * 0.02
+      const spread = 0.7 + Math.min(counts[s], 80) * 0.013
       const w: [number, number, number] = [
         c[0] + g(lead.id, spread) * 1.6,
         c[1] + g(lead.id * 3 + 1, spread),
@@ -208,21 +209,9 @@ export class FieldEngine {
       size.push(Math.max(0.25, Math.min(1, (lead.automation_score || 40) / 100)))
       act.push(last && last > dayAgo ? 1 : 0)
     }
-    // ambient dust — atmosphere only, density from real counts, never from
-    // money. An empty stage gets NO dust: a place nothing has reached yet is
-    // honestly dark, not decorated.
-    for (let s = 0; s < 6; s++) {
-      if (!counts[s]) continue
-      const c = CENTROIDS[s]
-      const spread = (0.7 + Math.min(counts[s], 80) * 0.02) * 1.7
-      const dust = Math.min(110 + counts[s] * 15, 560) | 0
-      for (let j = 0; j < dust; j++) {
-        const seed = s * 100000 + j * 7 + 11
-        pos.push(c[0] + g(seed, spread) * 1.6, c[1] + g(seed * 3 + 1, spread), c[2] + g(seed * 5 + 2, spread) * 1.6)
-        cen.push(...c); stg.push(s); rnd.push(hash(seed * 13))
-        core.push(0); size.push(0.5); act.push(0)
-      }
-    }
+    // NO ambient dust. The caption promises "every point is one real
+    // company" — so every point IS one. Atmosphere comes from the bloom pass,
+    // which only ever halos real businesses.
     this.n = stg.length
     if (!gl || !prog) return
     const mk = (name: string, arr: number[], sz: number) => {
@@ -298,7 +287,7 @@ export class FieldEngine {
     gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'uVP'), false, new Float32Array(this.vp))
     gl.uniform1f(gl.getUniformLocation(prog, 'uTime'), t)
     gl.uniform1f(gl.getUniformLocation(prog, 'uFocus'), this.focus)
-    gl.uniform1f(gl.getUniformLocation(prog, 'uFocusMix'), this.focus < 0 ? 0.0 : 0.72)
+    gl.uniform1f(gl.getUniformLocation(prog, 'uFocusMix'), this.focus < 0 ? 0.0 : 0.8)
     gl.uniform1f(gl.getUniformLocation(prog, 'uDpr'), Math.min(window.devicePixelRatio || 1, 2))
     gl.uniform1fv(gl.getUniformLocation(prog, 'uPulse[0]'), new Float32Array(this.pulses))
     if (this.n > 0) {
