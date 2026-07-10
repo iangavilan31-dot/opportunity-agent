@@ -47,6 +47,9 @@ const CITIES: Record<string, [number, number]> = {
   'ridgewood, nj': [40.9793, -74.1165],
   'bergenfield, nj': [40.9276, -73.9976],
   'tenafly, nj': [40.9254, -73.9629],
+  'glen rock, nj': [40.9629, -74.1329],
+  'cliffside park, nj': [40.8215, -73.9876],
+  'palisades park, nj': [40.8482, -73.9976],
 }
 
 // Where the agency lives — every connection grows from here.
