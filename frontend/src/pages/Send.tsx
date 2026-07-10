@@ -9,7 +9,12 @@ export default function Send() {
   const [loading, setLoading] = useState(false)
   const [focusedIdx, setFocusedIdx] = useState(0)
   const [sentCount, setSentCount] = useState(0)
+  const [postalMissing, setPostalMissing] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    api.getSettings().then((s) => setPostalMissing(!s.postal_address)).catch(() => {})
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -76,6 +81,18 @@ export default function Send() {
         </button>
       </div>
 
+      {/* a missing legally-required field is an operational failure — it gets
+          the alarm treatment red is otherwise never allowed to have */}
+      {postalMissing && (
+        <div className="px-6 py-2.5 border-b border-border border-l-2 border-l-red flex items-center gap-2 text-xs">
+          <AlertCircle size={13} className="text-red shrink-0" />
+          <span className="text-primary font-medium">Mailing address missing.</span>
+          <span className="text-muted">CAN-SPAM requires a postal address in every commercial email — add it in</span>
+          <a href="/settings" className="text-primary underline underline-offset-2">Settings</a>
+          <span className="text-muted">before sending more.</span>
+        </div>
+      )}
+
       {/* Help bar */}
       <div className="px-6 py-2 bg-s2 border-b border-border flex items-center gap-4 text-2xs text-muted">
         <Keyboard size={12} />
@@ -113,7 +130,7 @@ export default function Send() {
                 }`}
               >
                 {/* Score */}
-                <div className="font-mono font-semibold text-sm text-green w-8 text-center shrink-0">
+                <div className="font-mono font-semibold text-sm text-primary w-8 text-center shrink-0">
                   {draft.automation_score}
                 </div>
 
@@ -142,9 +159,15 @@ export default function Send() {
                   >
                     <Download size={12} />
                   </a>
+                  {/* same gating law as the Queue: no recipient, no filled primary */}
                   <button
                     onClick={() => sendDraft(draft)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue/15 hover:bg-blue/25 text-blue border border-blue/40 rounded transition-colors font-medium"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-colors font-semibold ${
+                      draft.has_email
+                        ? 'bg-primary hover:bg-primary/90 text-bg'
+                        : 'bg-s3 text-dim cursor-help border border-border'
+                    }`}
+                    title={draft.has_email ? 'Open a pre-filled Gmail draft and mark sent' : 'No contact email yet — add one in the Queue before sending'}
                   >
                     <ExternalLink size={11} />
                     Open in Gmail

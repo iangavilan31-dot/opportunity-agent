@@ -191,7 +191,7 @@ export class AtlasEngine {
     // never an empty black screen, it's this history seen from behind
     const replaying = T < this.domain()[1] - 60_000
     if (replaying) {
-      ctx.globalAlpha = 0.3
+      ctx.globalAlpha = 0.12
       for (const p of this.points) {
         if (!p.tSent) continue
         const [px, py] = this.toScreen(p.x, p.y)

@@ -15,7 +15,7 @@ export default {
         'border-subtle': '#141417',
         primary: '#f5f5f6',
         muted: '#a2a2ab',
-        dim: '#62626c',
+        dim: '#6e6e78',
         accent: '#f5f5f6',
         'accent-dim': '#26262b',
         // confidence = brightness (monochrome bands)

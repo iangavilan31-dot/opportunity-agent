@@ -44,7 +44,43 @@ Deferred (noted, not shipped): nav consolidation 9→5 (product-structure decisi
 
 | Critic | Score |
 |---|---|
-| A (Awwwards) | pending |
-| B (Product) | pending |
-| C (Info-design) | pending |
-| **Average** | pending |
+| A (Awwwards) | 63 |
+| B (Product) | 71 |
+| C (Info-design) | 71 |
+| **Average** | **68.3 — FAIL** (trend 63.7 → 65.7 → 68.3) |
+
+Converged complaints → fixes shipped (commit af853f2):
+1. **Labels still detached from their dot populations** (perspective puts world-centroid projections away from where the cluster appears) → labels now bind to the visible center of mass (mean of each stage's projected nodes) every frame.
+2. **Shot 02 wasn't even focused** — the ledger row's hover-focus was instantly overridden by the canvas picker underneath → ledger swallows mousemove; focus now holds.
+3. **Hover card leaked the raw enum** ("rejected" lowercase) → renders "Declined", matching every surface.
+4. **$100k projection at typographic parity with truth** → "Earned $0" is now the first and loudest money; projection demoted to a caption line under the funnel.
+5. **Two competing filled primaries + un-gated Gmail action on contact-less leads** → one filled primary; "Approve → Gmail" visually gates with an explanatory tooltip when no contact email exists.
+6. **"23 discovered" vs ~2 perceptible dots on the Atlas** → discovered/declined dots raised above the perception threshold; map strokes brightened; replay keeps the known network as faint ghost structure (the past is never a blank screen).
+7. **Zeros rendered as pills** (a mark with width lies) → zero stages are hairlines. **Legend** reworded to state provenance as provenance ("every glow is one real business") and node size range widened so size=score is readable. **Failed pipeline runs** get alarm red (operational harm is not gagged by the activity-red law).
+Deferred for Ian: nav consolidation 9→5; Overview/Analytics share modules by design for now.
+
+## Round 4 — 2026-07-09 (commit af853f2) — FINAL THIS SESSION
+
+| Critic | Score |
+|---|---|
+| A (Awwwards) | 71 |
+| B (Product) | 78 |
+| C (Info-design) | 79 |
+| **Average** | **76.0 — FAIL vs the 85 gate** (trend 63.7 → 65.7 → 68.3 → 76.0) |
+
+**Honest verdict: NOT at the bar yet. Do not call this shipped.** The identity and honesty laws are praised by all three critics as "genuinely ownable" / "Stripe-grade data discipline" / "a dashboard with an actual soul" — the remaining gap is execution polish, concentrated in known places.
+
+Fixed after round-4 screenshots (already committed, will show next round):
+- Hover card enum leak: "sent" → "Reached" (all three critics caught it) + card surface brightened.
+- Replay ghost dropped to unmistakably-ghost intensity (0.12).
+- Send page now gates "Open in Gmail" when no contact email (same law as Queue).
+- CAN-SPAM missing-mailing-address now raises an operational alarm banner on Send (B5 — and it is Ian's real open action).
+- One more global contrast step for tertiary text.
+
+## NEXT-SESSION QUEUE (path to ≥85, ranked by critic convergence)
+1. **Port the Field's language INTO Queue/Analytics** (A's #1 all four rounds): unit-chart funnel built from the same light-dots (C5's idea — extends the covenant), poster-numeral page headers, ghost chart scaffolding for empty space so sparse pages still compose.
+2. **Stage encoding beyond position** on the Field: brightness tier / halo weight per stage so cluster membership is readable at rest; collision avoidance between stacked labels; disclose position encoding in the legend.
+3. **Follow-ups scanning structure** (B4): group by due date, collapse repeated chips, demote "Mark replied" to row-hover.
+4. **Nav consolidation 9→5** (B, twice) — Ian's product-structure call.
+5. **Atlas**: label the 19 single-city dots on hover-zoom or micro-labels (C misread real businesses as decorative); on-canvas "ghost = known network" tag during replay.
+6. Overview/Analytics differentiation (B5): one canonical health page or clearly distinct jobs.

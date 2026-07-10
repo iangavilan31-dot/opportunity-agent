@@ -194,7 +194,7 @@ export default function Field() {
       {tip && (
         <div
           ref={tipRef}
-          className="absolute z-10 pointer-events-none emerge bg-s3/95 border border-muted/40 rounded-[10px] px-4 py-3 backdrop-blur-md"
+          className="absolute z-10 pointer-events-none emerge bg-[#1d1d22]/95 border border-muted/50 rounded-[10px] px-4 py-3 backdrop-blur-md"
           style={{ maxWidth: 280, boxShadow: '0 10px 34px rgba(0,0,0,0.65)' }}
         >
           <div className="text-[13.5px] font-bold text-primary leading-tight">{tip.company_name}</div>
@@ -202,7 +202,7 @@ export default function Field() {
           <div className="flex items-baseline gap-5 mt-2.5">
             <span>
               <span className="eyebrow !text-[8.5px] mr-1.5">Stage</span>
-              <b className="text-[11.5px] text-primary capitalize">{tip.status === 'rejected' ? 'Declined' : tip.status}</b>
+              <b className="text-[11.5px] text-primary capitalize">{tip.status === 'rejected' ? 'Declined' : tip.status === 'sent' ? 'Reached' : tip.status}</b>
             </span>
             <span>
               <span className="eyebrow !text-[8.5px] mr-1.5">Score</span>
