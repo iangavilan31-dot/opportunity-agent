@@ -18,7 +18,7 @@ import re
 from urllib.parse import quote_plus
 
 import config
-from email_templates import _variant, _first_name, _article
+from email_templates import _variant, _first_name, _article, greeting_name
 
 
 def _plural(noun: str) -> str:
@@ -180,7 +180,7 @@ def generate_website_suite(
     # Every email opens like a human wrote it (Ian, 2026-07-10). No name is no
     # excuse to skip the greeting — but "Hi there" stays banned (mass-send
     # tell), so the fallback greets the business by its short name.
-    greeting = f"Hi {fn},\n\n" if has_name else f"Hi {company_name} team,\n\n"
+    greeting = f"Hi {fn},\n\n" if has_name else f"Hi {greeting_name(company_name)} team,\n\n"
 
     # Identity + social proof + optional Google Meet offer (config-driven).
     studio = getattr(config, "STUDIO_NAME", "").strip()

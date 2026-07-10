@@ -18,8 +18,10 @@ creation (leads still queue with one-click Gmail compose links).
 from __future__ import annotations
 
 import base64
+import html as _html
 import os
 import re
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 _HERE = os.path.dirname(__file__)
@@ -94,23 +96,49 @@ def _get_service():
     return _service
 
 
+def _body_as_html(body: str) -> str:
+    """Mirror Gmail's own rich-compose markup: one <div> per line, <div><br></div>
+    for blank lines, wrapped in <div dir="ltr">. No fonts, no styling — renders
+    exactly like a hand-typed default Gmail message."""
+    lines = body.replace("\r\n", "\n").split("\n")
+    parts = [f"<div>{_html.escape(ln)}</div>" if ln.strip() else "<div><br></div>"
+             for ln in lines]
+    return '<div dir="ltr">' + "".join(parts) + "</div>"
+
+
+def _build_raw(to: str, subject: str, body: str, from_name: str = "") -> str:
+    """Build the base64url message for a draft.
+
+    multipart/alternative (plain + HTML), not bare text/plain: a plain-text
+    draft sends through Gmail's plain mode, which hard-wraps every line at
+    ~75 chars — recipients see choppy mid-sentence breaks (Ian saw it from
+    the recipient side, 2026-07-10). The HTML part flows naturally at any
+    width and is what Gmail's own default compose produces; the plain part
+    stays alongside it for deliverability.
+    """
+    # Last mile before Gmail: subjects skip apply_signature, so scrub
+    # AI-tell punctuation here for everything that ships.
+    from settings_store import humanize
+    body = humanize(body).replace("\r\n", "\n")
+    msg = MIMEMultipart("alternative")
+    msg.attach(MIMEText(body, "plain", _charset="utf-8"))
+    msg.attach(MIMEText(_body_as_html(body), "html", _charset="utf-8"))
+    if to:
+        msg["To"] = to
+    msg["Subject"] = humanize(subject)
+    if from_name:
+        # Gmail overrides From with the account address; the display name still shows.
+        msg["From"] = from_name
+    return base64.urlsafe_b64encode(msg.as_bytes()).decode()
+
+
 def create_draft(to: str, subject: str, body: str, from_name: str = "") -> str | None:
     """Create a Gmail draft. Returns the draft id, or None on failure/not-configured."""
     svc = _get_service()
     if svc is None:
         return None
     try:
-        # Last mile before Gmail: subjects skip apply_signature, so scrub
-        # AI-tell punctuation here for everything that ships.
-        from settings_store import humanize
-        msg = MIMEText(humanize(body), _charset="utf-8")
-        if to:
-            msg["To"] = to
-        msg["Subject"] = humanize(subject)
-        if from_name:
-            # Gmail overrides From with the account address; the display name still shows.
-            msg["From"] = from_name
-        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        raw = _build_raw(to, subject, body, from_name)
         draft = svc.users().drafts().create(
             userId="me", body={"message": {"raw": raw}}).execute()
         return draft.get("id")
@@ -125,12 +153,7 @@ def update_draft(draft_id: str, to: str, subject: str, body: str) -> bool:
     if svc is None:
         return False
     try:
-        from settings_store import humanize
-        msg = MIMEText(humanize(body), _charset="utf-8")
-        if to:
-            msg["To"] = to
-        msg["Subject"] = humanize(subject)
-        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        raw = _build_raw(to, subject, body)
         svc.users().drafts().update(
             userId="me", id=draft_id, body={"message": {"raw": raw}}).execute()
         return True

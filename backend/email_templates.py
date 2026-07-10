@@ -8,6 +8,7 @@ email_gen.py uses Claude Sonnet for sharper, fully bespoke copy.
 """
 import random
 import hashlib
+import re
 from niches import get_pack
 
 
@@ -29,6 +30,55 @@ def _first_name(contact_name: str) -> str:
     if contact_name and contact_name.strip():
         return contact_name.strip().split()[0]
     return "there"
+
+
+_LEGAL_SUFFIX = re.compile(
+    r"[,\s]+(?:p\.?a\.?|p\.?c\.?|l\.?l\.?c\.?|l\.?l\.?p\.?|inc\.?|ltd\.?|corp\.?"
+    r"|esq\.?|d\.?d\.?s\.?|d\.?c\.?|m\.?d\.?)\s*$", re.IGNORECASE)
+
+
+def greeting_name(company: str) -> str:
+    """Company name as a human would say it inside 'Hi ___ team,'. Scraped
+    names carry legal suffixes, parentheticals, and full service lists that
+    nobody would type in a greeting — 'Hi New Hope Chiropractic PC (Sung-Dong
+    Kim, DC) team,' is a mass-scrape tell (Ian saw it recipient-side,
+    2026-07-10). Strip down to the brand."""
+    name = (company or "").strip()
+    for sep in (" - ", " — ", " – ", " | "):
+        if sep in name:
+            head = name.split(sep)[0].strip()
+            if len(head) >= 4:
+                name = head
+                break
+    name = re.sub(r"\s*\(.*$", "", name).strip()
+    # Bilingual listings put the native-script name first or last
+    # ('뉴저지 교통사고 병원 Wellness Physical Therapy') — greet with the
+    # Latin brand, not the copy-pasted directory entry.
+    words = name.split()
+    while words and not re.search(r"[A-Za-z]", words[0]):
+        words.pop(0)
+    while words and not re.search(r"[A-Za-z]", words[-1]):
+        words.pop()
+    if words:
+        name = " ".join(words)
+    while True:
+        stripped = _LEGAL_SUFFIX.sub("", name).strip(" ,&")
+        if stripped == name or len(stripped) < 4:
+            break
+        name = stripped
+    m = re.match(r"(?:the\s+)?law\s+offices?\s+of\s+(.+)$", name, re.IGNORECASE)
+    if m and len(m.group(1).strip()) >= 4:
+        name = m.group(1).strip()
+    name = re.sub(r"\s+law\s+offices?\s*$", "", name, flags=re.IGNORECASE).strip()
+    # 'Hi Angler Plumbing, Heating & Drain Cleaning team,' — no human greets
+    # with the whole service list; cut long names at the first natural break.
+    if len(name) > 28:
+        for cut in (", ", " & ", " and "):
+            idx = name.find(cut)
+            if idx >= 8 and " " in name[:idx].strip():
+                name = name[:idx].strip()
+                break
+    return name.strip(" ,&") or (company or "").strip()
 
 
 def _workflow_phrase(workflows: list[str]) -> str:
@@ -123,7 +173,7 @@ def generate_suite_template(
     # (Ian, 2026-07-10: every email greets; "Hi there" stays banned as a
     # mass-send tell, so the company-team greeting is the fallback).
     has_name = bool(contact_name and contact_name.strip())
-    greeting = f"Hi {fn},\n\n" if has_name else f"Hi {company_name} team,\n\n"
+    greeting = f"Hi {fn},\n\n" if has_name else f"Hi {greeting_name(company_name)} team,\n\n"
     tool_tail = _variant(seed + "tool", [
         f", and {tool_ref} never quite stays current",
         f" — and keeping {tool_ref} updated falls to the bottom of the list",
