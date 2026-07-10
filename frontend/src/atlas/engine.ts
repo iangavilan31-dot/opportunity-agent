@@ -163,13 +163,14 @@ export class AtlasEngine {
     c.scale(this.s, this.s)
     const t = this.topo as { objects: { states: object; nation: object } }
     const path = geoPath(null, c)
-    // the country sits barely above the void — presence, not decoration
+    // the country sits above the void with real presence — restraint must
+    // still resolve on a normal monitor, not just a calibrated OLED
     c.beginPath(); path(feature(t as never, t.objects.nation as never) as never)
-    c.fillStyle = '#0a0a0c'; c.fill()
+    c.fillStyle = '#0c0c0f'; c.fill()
     c.beginPath(); path(mesh(t as never, t.objects.states as never, ((a: unknown, b: unknown) => a !== b) as never) as never)
-    c.strokeStyle = '#1a1a1f'; c.lineWidth = 0.7 / this.s; c.stroke()
+    c.strokeStyle = '#232329'; c.lineWidth = 0.75 / this.s; c.stroke()
     c.beginPath(); path(feature(t as never, t.objects.nation as never) as never)
-    c.strokeStyle = '#2b2b33'; c.lineWidth = 1.1 / this.s; c.stroke()
+    c.strokeStyle = '#383841'; c.lineWidth = 1.2 / this.s; c.stroke()
     this.staticLayer = layer
   }
 
@@ -185,6 +186,19 @@ export class AtlasEngine {
     if (this.staticLayer) ctx.drawImage(this.staticLayer, 0, 0, w, h)
 
     const [hx, hy] = this.toScreen(this.hq[0], this.hq[1])
+
+    // during replay, the known future stays as ghost structure — the past is
+    // never an empty black screen, it's this history seen from behind
+    const replaying = T < this.domain()[1] - 60_000
+    if (replaying) {
+      ctx.globalAlpha = 0.3
+      for (const p of this.points) {
+        if (!p.tSent) continue
+        const [px, py] = this.toScreen(p.x, p.y)
+        this.connection(ctx, hx, hy, px, py, 1, p, true)
+      }
+      ctx.globalAlpha = 1
+    }
 
     // connections first — the network under the businesses
     for (const p of this.points) {
@@ -241,9 +255,10 @@ export class AtlasEngine {
         ctx.beginPath(); ctx.arc(px, py, 2.1 * born, 0, Math.PI * 2); ctx.fill()
         continue
       }
-      // discovered (or declined — history stays, barely there)
-      ctx.fillStyle = p.rejected ? 'rgba(116,116,126,0.15)' : `rgba(138,138,148,${0.6 * born})`
-      ctx.beginPath(); ctx.arc(px, py, 2.1 * born, 0, Math.PI * 2); ctx.fill()
+      // discovered (or declined — history stays, quiet but countable:
+      // the canvas must audit its own readout)
+      ctx.fillStyle = p.rejected ? 'rgba(126,126,136,0.28)' : `rgba(150,150,160,${0.85 * born})`
+      ctx.beginPath(); ctx.arc(px, py, (p.rejected ? 2.0 : 2.6) * born, 0, Math.PI * 2); ctx.fill()
     }
 
     // HQ — where every line begins
@@ -273,7 +288,7 @@ export class AtlasEngine {
   private connection(
     ctx: CanvasRenderingContext2D,
     x0: number, y0: number, x1: number, y1: number,
-    u: number, p: TimedPoint,
+    u: number, p: TimedPoint, ghost = false,
   ) {
     if (u <= 0) return
     const mx = (x0 + x1) / 2, my = (y0 + y1) / 2
@@ -301,7 +316,7 @@ export class AtlasEngine {
     }
     ctx.stroke()
     // a bright head while the line is still traveling
-    if (u < 1) {
+    if (u < 1 && !ghost) {
       const a = 1 - u
       const qx = a * a * x0 + 2 * a * u * cx + u * u * x1
       const qy = a * a * y0 + 2 * a * u * cy + u * u * y1

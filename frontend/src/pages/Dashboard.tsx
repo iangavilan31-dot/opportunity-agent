@@ -35,7 +35,10 @@ function RunRow({ run }: { run: PipelineRun }) {
   const date = run.started_at
     ? new Date(run.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '—'
-  const statusColor = run.status === 'completed' ? 'text-primary' : 'text-muted'
+  // an operational failure is real harm, not suppressed by the activity-red
+  // law — the machine breaking deserves alarm color
+  const statusColor = run.status === 'completed' ? 'text-primary'
+    : run.status === 'failed' ? 'text-red' : 'text-muted'
 
   return (
     <div className="flex items-center gap-4 py-2.5 border-b border-border last:border-0">

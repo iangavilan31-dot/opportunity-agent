@@ -388,10 +388,12 @@ export default function LeadCard({
                 <X size={11} />
                 Reject
               </button>
+              {/* ONE filled primary. Approve-only is the quiet path; the Gmail
+                  action gates visually when there is nobody to send to. */}
               <button
                 onClick={handleApprove}
                 disabled={loading === 'approve'}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-green hover:bg-green/10 border border-green/30 rounded transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted hover:text-primary border border-border hover:border-muted rounded transition-colors disabled:opacity-50"
               >
                 <Check size={11} />
                 {loading === 'approve' ? '…' : 'Approve'}
@@ -399,8 +401,12 @@ export default function LeadCard({
               <button
                 onClick={handleApproveAndGmail}
                 disabled={loading === 'approve'}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary hover:bg-primary/90 text-bg rounded transition-colors disabled:opacity-50 font-semibold"
-                title="Approve and open a pre-filled Gmail draft"
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-colors disabled:opacity-50 font-semibold ${
+                  lead.contact_email
+                    ? 'bg-primary hover:bg-primary/90 text-bg'
+                    : 'bg-s3 text-dim cursor-help border border-border'
+                }`}
+                title={lead.contact_email ? 'Approve and open a pre-filled Gmail draft' : 'No contact email yet — use Find contact / Paste contact first'}
               >
                 <Send size={11} />
                 Approve → Gmail

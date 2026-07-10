@@ -40,15 +40,22 @@ export default function Field() {
     const ok = engine.init()
     if (!ok) return () => engine.destroy()
     engine.onFrame = () => {
-      // cluster labels follow their centroids (7th = Declined)
+      // labels bind to the VISIBLE center of mass of their dots (mean of the
+      // projected nodes), not the world centroid — perspective can put a
+      // centroid's projection far from where the cluster appears on screen
+      const sx = new Float32Array(7), sy = new Float32Array(7), sn = new Float32Array(7)
+      for (const n of engine.nodes) {
+        const p = engine.project(n.world)
+        if (!p) continue
+        sx[n.stage] += p.x; sy[n.stage] += p.y; sn[n.stage]++
+      }
       for (let i = 0; i < 7; i++) {
         const el = labelRefs.current[i]
         if (!el) continue
-        const p = engine.project(CENTROIDS[i])
-        if (!p) { el.style.opacity = '0'; continue }
+        if (!sn[i]) { el.style.opacity = '0'; continue }
         el.style.opacity = ''
-        el.style.left = p.x + 'px'
-        el.style.top = p.y - 26 + 'px'
+        el.style.left = sx[i] / sn[i] + 'px'
+        el.style.top = sy[i] / sn[i] - 30 + 'px'
       }
       // the hovered business keeps its card pinned to its drifting point
       const t = tipRef.current
@@ -195,7 +202,7 @@ export default function Field() {
           <div className="flex items-baseline gap-5 mt-2.5">
             <span>
               <span className="eyebrow !text-[8.5px] mr-1.5">Stage</span>
-              <b className="text-[11.5px] text-primary capitalize">{tip.status}</b>
+              <b className="text-[11.5px] text-primary capitalize">{tip.status === 'rejected' ? 'Declined' : tip.status}</b>
             </span>
             <span>
               <span className="eyebrow !text-[8.5px] mr-1.5">Score</span>
@@ -244,8 +251,12 @@ export default function Field() {
         </div>
       </div>
 
-      {/* stage ledger */}
-      <div className="absolute right-[26px] bottom-[40px] flex flex-col gap-0.5 text-right">
+      {/* stage ledger — swallow mousemove so hovering a row isn't immediately
+          un-focused by the canvas picker underneath */}
+      <div
+        className="absolute right-[26px] bottom-[40px] flex flex-col gap-0.5 text-right"
+        onMouseMove={(e) => e.stopPropagation()}
+      >
         {STAGES.map((s, i) => (
           <div
             key={s.key}
@@ -274,8 +285,8 @@ export default function Field() {
           <span className="text-[13px] font-bold num text-muted">{sum.declined}</span>
         </div>
         {/* the encoding, stated on the screen it governs */}
-        <div className="mt-4 text-right text-[10px] text-dim leading-relaxed pointer-events-none">
-          size = opportunity score · glow = real business<br />
+        <div className="mt-4 text-right text-[10.5px] text-muted/90 leading-relaxed pointer-events-none">
+          every glow is one real business · size = opportunity<br />
           red = only when a business answers
         </div>
       </div>

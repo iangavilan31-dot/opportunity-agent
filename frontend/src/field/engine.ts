@@ -62,7 +62,8 @@ void main(){
   float act = aAct*(0.5+0.5*sin(uTime*2.2+aRand*6.28));
   float won = step(4.5, aStage)*(1.0-step(5.5, aStage));
   float dec = step(5.5, aStage);
-  float base = mix(1.7, 4.2+3.2*aSize, aCore) + pl*3.0 + act*1.1 + won*2.6 - dec*1.4;
+  // wide size range so the declared size=score encoding is actually readable
+  float base = mix(1.7, 3.0+5.2*aSize, aCore) + pl*3.0 + act*1.1 + won*2.6 - dec*1.4;
   base *= mix(1.0, 7.0, uBloom);
   gl_PointSize = base*uDpr*(10.5/max(mv.w,0.4));
   // luminance floor: every real business is unambiguously visible

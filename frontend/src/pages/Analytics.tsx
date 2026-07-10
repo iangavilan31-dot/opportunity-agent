@@ -37,8 +37,16 @@ export default function Analytics() {
       </PageHeader>
 
       <div className="p-6 flex flex-col gap-6">
-        {/* the only headline numbers are REAL ones; dollars are labeled estimates */}
+        {/* the loudest money on this page is the REAL money — even at $0 */}
         <div className="grid grid-cols-3 gap-3">
+          <div className="pt-4 border-t border-border-subtle flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted">Earned</span>
+              <DollarSign size={13} className="text-dim" />
+            </div>
+            <div className={`text-3xl font-bold num ${sum.earned > 0 ? 'text-red' : 'text-primary'}`}>{money(sum.earned)}</div>
+            <div className="text-2xs text-muted">Real closed deals — the only dollars that count</div>
+          </div>
           <div className="pt-4 border-t border-border-subtle flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted">Active Businesses</span>
@@ -57,15 +65,6 @@ export default function Analytics() {
               {sum.cumulative.replied} replied · {sum.cumulative.meeting} meetings · {sum.cumulative.won} won
             </div>
           </div>
-          <div className="pt-4 border-t border-border-subtle flex flex-col gap-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted">Potential · estimate</span>
-              <DollarSign size={13} className="text-dim" />
-            </div>
-            {/* projections never outrank real numbers on this screen */}
-            <div className="text-xl font-semibold num text-muted">{money(extra.estPotential)}</div>
-            <div className="text-2xs text-muted">Projection if every active lead closed — not earned money</div>
-          </div>
         </div>
 
         {/* Funnel — live stage populations, plainly. No invented conversion math. */}
@@ -77,21 +76,32 @@ export default function Analytics() {
               return (
                 <div key={s.key} className="flex items-center gap-3">
                   <span className="text-xs text-muted w-20 shrink-0">{s.name}</span>
-                  <div className="flex-1 h-5 relative">
-                    <div
-                      className="h-full rounded transition-all flex items-center px-2"
-                      style={{
-                        width: `${Math.max(4, (count / maxFunnel) * 100)}%`,
-                        background: STAGE_COLOR(i, count),
-                        opacity: 0.8,
-                      }}
-                    >
-                      <span className={`text-2xs num font-medium ${count > 0 && i === 2 ? 'text-bg' : 'text-primary'}`}>{count}</span>
-                    </div>
+                  <div className="flex-1 h-5 relative flex items-center">
+                    {count === 0 ? (
+                      // zero is a hairline, not a pill — a mark with width lies
+                      <>
+                        <div className="w-full h-px bg-border-subtle" />
+                        <span className="absolute left-0 text-2xs num text-dim">0</span>
+                      </>
+                    ) : (
+                      <div
+                        className="h-full rounded transition-all flex items-center px-2"
+                        style={{
+                          width: `${Math.max(4, (count / maxFunnel) * 100)}%`,
+                          background: STAGE_COLOR(i, count),
+                          opacity: 0.8,
+                        }}
+                      >
+                        <span className={`text-2xs num font-medium ${i === 2 ? 'text-bg' : 'text-primary'}`}>{count}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
             })}
+          </div>
+          <div className="text-2xs text-dim mt-3">
+            If every active lead closed: ~{money(extra.estPotential)} — a projection, not earned money.
           </div>
         </div>
 
