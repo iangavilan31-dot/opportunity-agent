@@ -116,8 +116,9 @@ def _issue_clause(signals: dict, company: str, noun: str, how_found: str) -> str
         return (f"I noticed {company} {tg}. That's your best proof sitting invisible "
                 f"right where {how_found} decide.")
     if "no_mobile" in codes:
-        return (f"Your website doesn't have a mobile version, and {how_found} "
-                f"are almost all on phones, where it's hard to read and tap.")
+        return (f"Your website doesn't have a mobile version, so {how_found} "
+                f"get the desktop site squeezed onto a small screen, hard to "
+                f"read and tap.")
     if "not_secure" in codes:
         return (f"Your site shows up as \"Not Secure\" in the address bar, "
                 f"which quietly turns away {how_found} before they ever call.")
@@ -216,6 +217,9 @@ def generate_website_suite(
     # subject strings. Generic repeats ("your google reviews" ×8 in one Drafts
     # screen, 2026-07-09) are a bulk-template fingerprint for Gmail's filters
     # AND read like a blast to the recipient — specific beats generic on both.
+    # The bare business name joins every pool: a subject that's ONLY the
+    # entity's own name reads like a client or internal email about them, not
+    # a pitch (asset-led outreach canon, docs/ASSET_LED_OUTREACH.md).
     codes = {f["code"] for f in signals.get("findings", [])}
     if {"no_domain", "social_only", "unreachable"} & codes:
         subject_pool = [
@@ -223,6 +227,7 @@ def generate_website_suite(
             f"couldn't find {company_name} online",
             f"quick note for {company_name}",
             f"looking for {company_name}'s site",
+            f"{company_name}",
         ]
     elif "trust_gap" in codes:
         subject_pool = [
@@ -230,6 +235,7 @@ def generate_website_suite(
             f"{company_name}'s reviews",
             f"your Google rating vs {company_name}'s website",
             f"the reviews missing from {company_name}'s site",
+            f"{company_name}",
         ]
     elif "no_mobile" in codes:
         subject_pool = [
@@ -237,6 +243,7 @@ def generate_website_suite(
             f"{company_name}'s site on mobile",
             f"pulled up {company_name} on my phone",
             f"quick note on {company_name}'s website",
+            f"{company_name}",
         ]
     else:
         subject_pool = [
@@ -244,6 +251,7 @@ def generate_website_suite(
             f"noticed something on {company_name}'s site",
             f"a couple things on {company_name}'s website",
             f"{company_name}'s website",
+            f"{company_name}",
         ]
     subject = sentence_case(_variant(seed + "subj", subject_pool))
 
@@ -261,7 +269,16 @@ def generate_website_suite(
         pitch_line = (f"I design fast, mobile-first sites for {nouns}"
                       f"{studio_clause}, the kind that turn a Google search "
                       f"into a phone call.")
-    email_body = f"""{greeting}{issue_clause}
+    # Phone-first lead-in ("I was going to call, but...") on a minority of
+    # emails: it frames the sender as someone who picks up the phone, which
+    # cold-email-to-local-business rarely does. Most variants are empty so a
+    # batch doesn't share a fingerprint sentence.
+    call_lead = _variant(seed + "call", [
+        "I was going to call, but figured an email is easier to answer on your own time. ",
+        "Almost called you about this, then decided an email is less of an interruption. ",
+        "", "", "", "", "",
+    ])
+    email_body = f"""{greeting}{call_lead}{issue_clause}
 
 {pitch_line}
 
