@@ -12,3 +12,7 @@ frontend/dist/
 tools/*.exe
 backend/screenshots/
 targets.csv
+
+# local DB backups + dated target snapshots (working artifacts, not source)
+backend/opportunity_agent.backup-*.db
+targets_az_*.csv
