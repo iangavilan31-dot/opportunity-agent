@@ -106,7 +106,7 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
     db.refresh(run)
 
     queued = skipped_existing = skipped_lowopp = skipped_lang = errors = drafted = 0
-    downranked_modern = modern_drafted = vision_used = 0
+    downranked_modern = modern_drafted = vision_used = skipped_suppressed = 0
     try:
         max_analyze = getattr(config, "AUTOPILOT_MAX_ANALYZE", 150)
         targets, source = web_targets.load_targets(limit=max_analyze)
@@ -115,6 +115,12 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
         db.commit()
 
         existing_ids = {r[0] for r in db.query(Lead.job_id).all()}
+        # Never re-target an address a bounce already blacklisted (sendability
+        # 'blocked'), even if the business gets re-sourced under a new record.
+        blocked_emails = {(r[0] or "").strip().lower()
+                          for r in db.query(Lead.contact_email)
+                                     .filter(Lead.sendability == "blocked").all()
+                          if r[0]}
 
         # Dedup up front — only analyze businesses we haven't processed before.
         todo = []
@@ -159,6 +165,9 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
                     skipped_lang += 1
                     continue
                 email = (t.get("contact_email") or "").strip() or signals.get("contact_email", "")
+                if email and email.strip().lower() in blocked_emails:
+                    skipped_suppressed += 1  # bounced before -> don't email again
+                    continue
                 # Carry the Maps qualification data into the stored signals so the
                 # UI/notes can show it ("4.6 stars, 120 reviews, has a phone").
                 if t.get("review_count") or t.get("rating") or t.get("phone"):
@@ -378,12 +387,13 @@ def run(limit: int | None = None, auto_approve: bool | None = None) -> dict:
         _log(run_log, f"Done. {queued} leads {landing_status} | {drafted} Gmail drafts | "
                       f"{skipped_existing} already had | {skipped_lowopp} sites fine | "
                       f"{downranked_modern} modern downranked ({modern_drafted} drafted) | "
-                      f"{skipped_lang} non-English | {errors} errors")
+                      f"{skipped_lang} non-English | {skipped_suppressed} bounced-blocked | "
+                      f"{errors} errors")
         return {
             "ok": True, "queued": queued, "drafted": drafted, "status": landing_status,
             "skipped_existing": skipped_existing, "skipped_lowopp": skipped_lowopp,
             "downranked_modern": downranked_modern, "modern_drafted": modern_drafted,
-            "skipped_lang": skipped_lang,
+            "skipped_lang": skipped_lang, "skipped_suppressed": skipped_suppressed,
             "errors": errors, "source": source, "run_id": run.id,
         }
     except Exception as e:

@@ -82,6 +82,8 @@ def process(db, log=print) -> dict:
                .all())
 
     for lead in leads:
+        if (lead.sendability or "") == "blocked":
+            continue  # hard-bounced address: a follow-up is a guaranteed re-bounce
         notes = lead.notes or ""
         fu1 = _marker(notes, "fu1_draft")
         fu2 = _marker(notes, "fu2_draft")

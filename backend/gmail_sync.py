@@ -18,6 +18,8 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 
+from sqlalchemy import func
+
 import gmail_drafts
 import gmail_read
 from db import Lead
@@ -62,9 +64,10 @@ def status() -> dict:
 def reconcile(db, log=print) -> dict:
     """Flip lead statuses to match Gmail. Returns a summary + the reply list."""
     out = {"sent_detected": 0, "relinked": 0, "replies_detected": 0, "checked": 0,
+           "bounces_detected": 0,
            "read_authorized": gmail_read.is_configured(),
            "compose_authorized": gmail_drafts.is_configured(),
-           "replies": []}
+           "replies": [], "bounced": []}
 
     website = (db.query(Lead)
                  .filter(Lead.source == "website_autopilot",
@@ -124,7 +127,10 @@ def reconcile(db, log=print) -> dict:
             if lead.status not in _EMAILED_STATUSES:
                 continue
             out["checked"] += 1
-            epoch = gmail_read.latest_epoch_ms(f'from:{email} newer_than:120d')
+            # latest_human_reply_epoch_ms skips auto-responders / out-of-office
+            # / bounces — a receptionist's vacation auto-reply is NOT a reply,
+            # and marking it one would stop this lead's follow-up cadence.
+            epoch = gmail_read.latest_human_reply_epoch_ms(email)
             if not epoch:
                 continue
             when = datetime.fromtimestamp(epoch / 1000.0, tz=timezone.utc)
@@ -141,6 +147,32 @@ def reconcile(db, log=print) -> dict:
             out["replies"].append({"company": lead.company_name, "email": email,
                                     "when": when.isoformat()})
             log(f"  REPLY: {lead.company_name} <{email}>")
+
+    # ── 3) BOUNCES: blacklist hard-bounced addresses ─────────────────────────
+    # A permanent bounce means the mailbox is dead. Mark the lead sendability
+    # 'blocked' so follow-ups (followups.py), new drafts (morning_batch) and
+    # auto_send all stop targeting it — every extra bounce dents deliverability
+    # and a follow-up to a dead mailbox is a guaranteed second bounce.
+    if gmail_read.is_configured():
+        hard = {}
+        for b in gmail_read.list_bounces(newer_than_days=30):
+            if b["permanent"]:
+                hard.setdefault(b["email"], b)
+        for email, b in hard.items():
+            leads = (db.query(Lead)
+                       .filter(func.lower(Lead.contact_email) == email)
+                       .all())
+            newly = False
+            for lead in leads:
+                if (lead.sendability or "") != "blocked":
+                    lead.sendability = "blocked"
+                    lead.notes = f"{lead.notes or ''} bounced:{b['code']}".strip()
+                    lead.last_action_at = _now()
+                    newly = True
+            if newly:
+                out["bounces_detected"] += 1
+                out["bounced"].append({"email": email, "code": b["code"]})
+                log(f"  BOUNCE (blocked): {email} [{b['code']}]")
 
     db.commit()
     return out

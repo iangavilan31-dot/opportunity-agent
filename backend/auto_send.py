@@ -136,6 +136,10 @@ def run(limit: int | None = None) -> dict:
                 break
 
             email = (lead.contact_email or "").strip().lower()
+            if (lead.sendability or "") == "blocked":
+                print(f"  skip {lead.company_name}: {email} suppressed (bounced)")
+                skipped += 1
+                continue
             # Gate 4: re-verify the recipient AT SEND TIME.
             if not website_signals.is_trustworthy_email(
                     email, lead.company_domain or "", name_hint=lead.company_name or ""):
