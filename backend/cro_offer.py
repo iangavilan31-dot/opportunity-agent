@@ -42,9 +42,12 @@ def generate_cro_suite(company_name: str, contact_name: str, category: str,
             since = f", running since {human}"
         except ValueError:
             pass
+    # No PSI measurement = no speed claim (the false-claim law: any claim in an
+    # email must be measured or it doesn't ship). Fall back to the lead's
+    # original verified site finding via original_finding.
     psi_clause = (f"the page it lands on scores {psi_mobile}/100 on Google's mobile speed test"
                   if psi_mobile is not None else
-                  "the page it lands on takes long enough to load that people give up")
+                  "the page it lands on undoes some of that spend")
 
     def _cap(s: str) -> str:  # first letter only — .capitalize() would downcase "Google"
         return s[0].upper() + s[1:] if s else s
