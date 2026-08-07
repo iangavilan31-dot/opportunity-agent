@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WEB MACHINE — BATTLE PLAN</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e5231b'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+  :root { --red: #e5231b; --bg: #0a0a0b; --ink: #f5f5f6; --mut: #9a9aa2; --dim: #55555c; --line: #1c1c1f; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Outfit', sans-serif; padding: 28px 32px 60px; }
+  a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--red); }
+  a:hover { color: var(--red); }
+  .top { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 3px solid var(--red); padding-bottom: 14px; }
+  .top h1 { font-weight: 900; font-size: 34px; letter-spacing: -0.5px; }
+  .top h1 span { color: var(--red); }
+  .day { font-weight: 800; font-size: 20px; color: var(--mut); }
+  .day b { color: var(--ink); font-size: 28px; }
+  .timers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 26px 0; }
+  .timer { border: 1px solid var(--line); padding: 18px 20px 14px; }
+  .timer.hot { border-color: var(--red); }
+  .timer .lbl { font-size: 13px; font-weight: 600; letter-spacing: 0.14em; color: var(--mut); }
+  .timer.hot .lbl { color: var(--red); }
+  .timer .big { font-weight: 900; font-size: 52px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .timer .sub { font-size: 13px; color: var(--dim); font-weight: 600; }
+  h2 { font-weight: 800; font-size: 15px; letter-spacing: 0.16em; color: var(--red); margin: 30px 0 12px; }
+  .moves { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 26px; }
+  .move { display: flex; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 16px; }
+  .move .n { font-weight: 900; color: var(--red); min-width: 20px; }
+  .move .why { color: var(--dim); font-size: 13px; }
+  .phase { display: grid; grid-template-columns: 110px 200px 1fr; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .phase .date { font-weight: 900; font-size: 16px; font-variant-numeric: tabular-nums; }
+  .phase .name { font-weight: 800; font-size: 16px; }
+  .phase .exp { color: var(--mut); font-size: 14px; line-height: 1.5; }
+  .phase.done .date, .phase.done .name { color: var(--dim); }
+  .phase.done .name::after { content: " ✓"; color: var(--ink); }
+  .phase.live .date, .phase.live .name { color: var(--red); }
+  .phase.live .name::after { content: " ● LIVE"; font-size: 12px; letter-spacing: 0.1em; }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 8px; }
+  .stat { border: 1px solid var(--line); padding: 12px 16px; }
+  .stat .v { font-weight: 900; font-size: 40px; font-variant-numeric: tabular-nums; }
+  .stat .k { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; color: var(--mut); }
+  .stat.red .v { color: var(--red); }
+  #offline { display: none; color: var(--dim); font-size: 14px; font-weight: 600; margin-top: 8px; }
+  .links { display: flex; flex-wrap: wrap; gap: 10px 22px; font-size: 14px; margin-top: 6px; }
+  .foot { margin-top: 34px; color: var(--dim); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>WEB MACHINE <span>/</span> BATTLE PLAN</h1>
+  <div class="day">DAY <b id="day">1</b> · locked Aug 7</div>
+</div>
+
+<div class="timers">
+  <div class="timer hot">
+    <div class="lbl">E2 LAUNCH — FIRST PROOF-PACK SENDS</div>
+    <div class="big" id="t1">—</div>
+    <div class="sub">Sep 11 · assumes domains ordered TODAY (5-wk warmup)</div>
+  </div>
+  <div class="timer">
+    <div class="lbl">E2 VERDICT — THESIS CONFIRMED OR KILLED</div>
+    <div class="big" id="t2">—</div>
+    <div class="sub">~Oct 24 · two weeks after final send</div>
+  </div>
+  <div class="timer">
+    <div class="lbl">90-DAY GATE — SCALE OR PIVOT</div>
+    <div class="big" id="t3">—</div>
+    <div class="sub">Nov 5 · target: 2–4 paying clients</div>
+  </div>
+</div>
+
+<h2>YOUR MOVES — DO THESE, CLOCK STARTS</h2>
+<div class="moves">
+  <div class="move"><span class="n">1</span><span><a href="https://porkbun.com" target="_blank">Buy 2 domains</a> (~$25)</span><span class="why">starts the 5-week warmup — most urgent</span></div>
+  <div class="move"><span class="n">2</span><span><a href="https://workspace.google.com/business/signup/welcome" target="_blank">3 Workspace inboxes</a> (~$21/mo)</span><span class="why">on the new domains, never the main Gmail</span></div>
+  <div class="move"><span class="n">3</span><span><a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank">GCP: publish booksy-bot → Production</a></span><span class="why">or Gmail tokens die weekly</span></div>
+  <div class="move"><span class="n">4</span><span><a href="https://console.cloud.google.com/apis/library/pagespeedonline.googleapis.com" target="_blank">GCP: PageSpeed API key</a> (free)</span><span class="why">unblocks the slow-page detector</span></div>
+  <div class="move"><span class="n">5</span><span><a href="http://localhost:5120/settings" target="_blank">Set postal address in Settings</a></span><span class="why">CAN-SPAM footer is auto-dropping</span></div>
+  <div class="move"><span class="n">6</span><span><a href="https://www.millionverifier.com" target="_blank">MillionVerifier top-up</a> (~$89)</span><span class="why">stops bounces before they burn the domain</span></div>
+  <div class="move"><span class="n">7</span><span><a href="https://mail.google.com/mail/#drafts" target="_blank">Send 15–20 drafts/day</a></span><span class="why">55 follow-ups are loaded and free</span></div>
+</div>
+
+<h2>THE TIMELINE — WHAT HAPPENS, WHAT TO EXPECT</h2>
+<div>
+  <div class="phase done"><div class="date">AUG 7</div><div class="name">E0 · Resurrection</div><div class="exp">Tokens live, dead-man alarm armed, 55 follow-ups drafted. Expect: no revenue, just a machine that can't die silently anymore.</div></div>
+  <div class="phase live"><div class="date">AUG 7–14</div><div class="name">E1 · Detection sweep</div><div class="exp">Ad-library + PageSpeed over every NJ lead. Expect: the qualified-prospect count (need ≥40 in-county, else we go multi-metro — a routing change, not a failure).</div></div>
+  <div class="phase"><div class="date">AUG 14–21</div><div class="name">E5 · Local motion</div><div class="exp">Mail drop + walk-ins with live gift sites for the 141 no-email Bergen leads. Expect: first human conversations. A single $99/mo local client here beats everything email does this month.</div></div>
+  <div class="phase"><div class="date">SEP 11</div><div class="name">E2 · Proof-pack sends begin</div><div class="exp">25–40/day from warmed inboxes: their ad, their speed score, the built page. Expect: silence for the first week — normal. Replies statistically arrive between send #50–220.</div></div>
+  <div class="phase"><div class="date">OCT 9</div><div class="name">E2 · Sends complete</div><div class="exp">300–600 prospects touched, artifact arm vs control. Expect: 6–20 positive replies at base case; E3 tests no-call Stripe checkout on every one.</div></div>
+  <div class="phase"><div class="date">OCT 24</div><div class="name">E2/E3 · VERDICT</div><div class="exp">≥2% positive replies + artifact ≥2x control = thesis confirmed. Both arms under 0.7% = email channel dead, pivot to calls/mail with the same machine. Either way: an answer nobody has published.</div></div>
+  <div class="phase"><div class="date">NOV 5</div><div class="name">90-DAY GATE</div><div class="exp">Base case: 2–4 paying clients, $600–1,400/mo recurring, breakeven on cash. Decision: scale the winning arm to 10k prospects/mo, or execute the pre-registered pivot.</div></div>
+</div>
+
+<h2>LIVE — FROM THE MACHINE</h2>
+<div class="stats">
+  <div class="stat"><div class="v" id="s-sent">–</div><div class="k">SENT</div></div>
+  <div class="stat red"><div class="v" id="s-replied">–</div><div class="k">REPLIES</div></div>
+  <div class="stat"><div class="v" id="s-queued">–</div><div class="k">QUEUED</div></div>
+  <div class="stat"><div class="v" id="s-fu">–</div><div class="k">FOLLOW-UPS DUE</div></div>
+  <div class="stat"><div class="v" id="s-day">–</div><div class="k">LAST PIPELINE RUN</div></div>
+</div>
+<div id="offline">MACHINE OFFLINE — start the backend (:8010) to light this up. Timers run regardless.</div>
+
+<h2>LINKS</h2>
+<div class="links">
+  <a href="http://localhost:8010/hud" target="_blank">Revenue Universe HUD</a>
+  <a href="http://localhost:5120" target="_blank">Operator app</a>
+  <a href="https://www.facebook.com/ads/library/" target="_blank">Meta Ad Library</a>
+  <a href="https://adstransparency.google.com" target="_blank">Google Ads Transparency</a>
+  <a href="https://pagespeed.web.dev" target="_blank">PageSpeed Insights</a>
+  <a href="https://instantly.ai/pricing" target="_blank">Instantly (sequencer)</a>
+  <a href="https://dashboard.stripe.com/payment-links" target="_blank">Stripe Payment Links</a>
+</div>
+
+<div class="foot">FULL SPEC: ObsidianPKM\research\smb-opportunity-engine-2026-08-06.md · BRIEF_ADRESCUE.md · kill criteria are pre-registered — the plan decides, not the mood</div>
+
+<script>
+  const DAY0 = new Date('2026-08-07T00:00:00');
+  const targets = [
+    ['t1', new Date('2026-09-11T09:00:00')],
+    ['t2', new Date('2026-10-24T09:00:00')],
+    ['t3', new Date('2026-11-05T09:00:00')],
+  ];
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function tick() {
+    const now = new Date();
+    document.getElementById('day').textContent = Math.floor((now - DAY0) / 864e5) + 1;
+    for (const [id, t] of targets) {
+      const ms = t - now;
+      const el = document.getElementById(id);
+      if (ms <= 0) { el.textContent = 'NOW'; continue; }
+      const d = Math.floor(ms / 864e5);
+      const h = Math.floor(ms % 864e5 / 36e5);
+      const m = Math.floor(ms % 36e5 / 6e4);
+      const s = Math.floor(ms % 6e4 / 1e3);
+      el.textContent = d + 'd ' + pad(h) + ':' + pad(m) + ':' + pad(s);
+    }
+  }
+  tick(); setInterval(tick, 1000);
+
+  async function stats() {
+    try {
+      const r = await fetch('/api/stats');
+      if (!r.ok) throw new Error(r.status);
+      const j = await r.json();
+      document.getElementById('offline').style.display = 'none';
+      const set = (id, v) => { if (v !== undefined && v !== null) document.getElementById(id).textContent = v; };
+      set('s-sent', j.sent); set('s-replied', j.replied); set('s-queued', j.queued);
+      set('s-fu', j.followups_due);
+      if (j.last_run && j.last_run.started_at) {
+        const days = Math.floor((Date.now() - new Date(j.last_run.started_at + 'Z')) / 864e5);
+        document.getElementById('s-day').textContent = days === 0 ? 'TODAY' : days + 'd ago';
+      }
+    } catch (e) {
+      document.getElementById('offline').style.display = 'block';
+    }
+  }
+  stats(); setInterval(stats, 30000);
+</script>
+</body>
+</html>
